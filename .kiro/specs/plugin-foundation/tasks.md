@@ -100,7 +100,7 @@
   - _Requirements: 5.2, 5.3, 5.4, 5.5_
   - _Boundary: ThemeModule_
 
-- [ ] 3.5 (P) ReactMountManager の実装
+- [x] 3.5 (P) ReactMountManager の実装
   - `src/lib/react-mount.ts` を作成する
   - `ReactMountManager` interface (`mount(container, component): () => void`、`unmount(container): void`、`unmountAll(): void`) を export する
   - `createReactMountManager(): ReactMountManager` ファクトリを実装する
