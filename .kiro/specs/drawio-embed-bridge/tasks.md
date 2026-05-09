@@ -45,7 +45,7 @@
   - _Boundary: DrawioUrl_
 
 - [ ] 4. DrawioBridge クラスの実装
-- [ ] 4.1 DrawioBridge の mount / dispose / postMessage 送信を実装する
+- [x] 4.1 DrawioBridge の mount / dispose / postMessage 送信を実装する
   - `src/lib/drawio-bridge.ts` を新規作成する
   - `DrawioBridgeCallbacks`、`DrawioBridgeMountOptions`、`DrawioBridge`、`DrawioExportFormat` を design.md の Service Interface のとおり定義する (`load` / `replaceContent` / `requestSave` / `requestExport` / `setTheme` / `setLibraries` / `sendMessage` を全て含む)
   - `createDrawioBridge(app: App): DrawioBridge` ファクトリ関数を実装する
