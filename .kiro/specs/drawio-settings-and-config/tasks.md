@@ -131,7 +131,7 @@
   - _Depends: 4.1_
 
 - [ ] 5. DiagramSettingsModal (per-diagram 設定 UI) の実装
-- [ ] 5.1 DiagramSettingsModal クラスと React ルートの骨格を実装する
+- [x] 5.1 DiagramSettingsModal クラスと React ルートの骨格を実装する
   - `src/views/DiagramSettingsModal.tsx` を新規作成する
   - `DiagramSettingsModal extends Modal` を定義し、`onOpen()` で `mountManager.mount`、`onClose()` で `unmount` を呼ぶ
   - モーダル表示時に `loadPerDiagramConfig` を呼んで初期値を取得し React に渡す
@@ -140,7 +140,7 @@
   - _Boundary: DiagramSettingsModal_
   - _Depends: 2.1, 2.2_
 
-- [ ] 5.2 per-diagram 設定フォームの UI を実装する
+- [x] 5.2 per-diagram 設定フォームの UI を実装する
   - libraries override チェックボックスリスト (blank = グローバル設定を使用) を実装する
   - theme override ドロップダウン (空欄オプション = グローバル設定を使用) を実装する
   - math / grid トグル (indeterminate 状態 = `undefined` = グローバル設定を使用) を実装する
@@ -149,7 +149,7 @@
   - _Boundary: DiagramSettingsModal_
   - _Depends: 5.1_
 
-- [ ] 5.3 "drawio: 図の設定を編集" コマンドを登録する
+- [x] 5.3 "drawio: 図の設定を編集" コマンドを登録する
   - `src/main.ts` の `onload()` に `addCommand` で "drawio: 図の設定を編集" を登録する
   - アクティブな DrawioView が存在する場合は `DiagramSettingsModal` を開く
   - DrawioView が存在しない場合は `new Notice("draw.io ファイルを開いた状態で実行してください")` を表示する
@@ -158,7 +158,7 @@
   - _Boundary: DiagramSettingsModal_
 
 - [ ] 6. onload / onunload の配線と統合
-- [ ] 6.1 onload への ThemeBridge・SettingTab・コマンド・sidecar lifecycle 登録を追加する
+- [x] 6.1 onload への ThemeBridge・SettingTab・コマンド・sidecar lifecycle 登録を追加する
   - `src/main.ts` の `onload()` に `createThemeBridge` の初期化、`addSettingTab`、`registerPerDiagramConfigLifecycle(this)`、全コマンド登録を追加する
   - `loadSettings` 後に `migrateSettings` を呼んで設定を最新スキーマに正規化し、変更があれば `saveSettings` を呼ぶ (legacy file-io トップレベルフィールドの吸収を含む)
   - プラグイン有効化後に設定タブが表示され、テーマ追従が動作すること、sidecar の rename/delete 追従が動作することを確認できること
@@ -166,7 +166,7 @@
   - _Boundary: SettingsModule, ThemeBridge, DrawioSettingTab, PerDiagramConfigModule_
   - _Depends: 1.2, 2.3, 3.1, 4.1, 5.3_
 
-- [ ] 6.2 onunload での ThemeBridge dispose を追加する
+- [x] 6.2 onunload での ThemeBridge dispose を追加する
   - `src/main.ts` の `onunload()` に `themeBridge.dispose()` の呼び出しを追加する
   - プラグイン無効化後に css-change リスナーが解除されていること (console に警告が出ないこと)
   - _Requirements: 3.4_
@@ -174,7 +174,7 @@
   - _Depends: 6.1_
 
 - [ ] 7. 検証・統合テスト
-- [ ] 7.1 設定スキーマのユニットテスト
+- [x] 7.1 設定スキーマのユニットテスト
   - `migrateSettings(null)` → DEFAULT、`migrateSettings({settingsVersion: 0})` → 全フィールド補完、`migrateSettings({theme: 999})` → theme DEFAULT にリセットを確認する
   - **Legacy 吸収テスト**: `migrateSettings({openDrawioSvg: false, openDrawioPng: false, preserveCompression: false})` が `{ drawio: { openDrawioSvg: false, openDrawioPng: false, compression: false, ... } }` を返し、トップレベルのレガシーフィールドが消えていることを確認する
   - `resolveBridgeTheme` のテーブル駆動テスト (auto-light, auto-dark, light, dark, kennedy, min, atlas) を実施する
@@ -182,7 +182,7 @@
   - すべてのテストケースが pass すること
   - _Requirements: 1.2, 1.3, 1.6, 3.5, 3.6, 7.1, 7.2, 7.3_
 
-- [ ] 7.2 per-diagram config のラウンドトリップ・ライフサイクル検証
+- [x] 7.2 per-diagram config のラウンドトリップ・ライフサイクル検証
   - `savePerDiagramConfig` → `loadPerDiagramConfig` で同一データが取得できることを確認する
   - sidecar ファイルが空オブジェクトで save されたとき、ファイルが削除されることを確認する
   - 不正 JSON の sidecar ファイルがあっても `loadPerDiagramConfig` が `{}` を返すことを確認する

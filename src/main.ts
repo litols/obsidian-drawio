@@ -1,4 +1,4 @@
-import { Plugin, type TFile } from "obsidian";
+import { Notice, Plugin, type TFile } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   migrateSettings,
@@ -11,6 +11,7 @@ import { DrawioView, DRAWIO_VIEW_TYPE } from "./views/DrawioView";
 import { registerPerDiagramConfigLifecycle } from "./lib/per-diagram-config";
 import { createThemeBridge, type ThemeBridge } from "./lib/theme-bridge";
 import { DrawioSettingTab } from "./views/SettingsTab";
+import { DiagramSettingsModal } from "./views/DiagramSettingsModal";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
@@ -54,6 +55,28 @@ export default class ObsidianDrawioPlugin extends Plugin {
           });
         }),
       );
+
+      this.addCommand({
+        id: "edit-per-diagram-settings",
+        name: "drawio: 図の設定を編集",
+        callback: () => {
+          const leaf = this.app.workspace.getMostRecentLeaf();
+          if (!leaf || leaf.view?.getViewType() !== DRAWIO_VIEW_TYPE) {
+            new Notice("draw.io ファイルを開いた状態で実行してください");
+            return;
+          }
+          const view = leaf.view as DrawioView;
+          if (!view.file) {
+            new Notice("draw.io ファイルが開かれていません");
+            return;
+          }
+          new DiagramSettingsModal(this.app, this, view.file, () => {
+            void view.reload(view.file!).catch((err) => {
+              console.warn("[drawio] reload after per-diagram save failed:", err);
+            });
+          }).open();
+        },
+      });
 
       registerDemoCommand(this);
     } catch (error) {
