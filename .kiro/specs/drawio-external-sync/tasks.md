@@ -77,7 +77,7 @@
   - _Boundary: DrawioView_
 
 - [ ] 4. Action Banner 実装
-- [ ] 4.1 `src/views/ExternalChangeBanner.tsx` に React コンポーネントを実装する (P)
+- [x] 4.1 `src/views/ExternalChangeBanner.tsx` に React コンポーネントを実装する (P)
   - `ExternalChangeBannerProps { sourceHint?, onReload, onDiff, onKeepMine }` を定義する
   - `[Reload]` / `[Diff]` / `[Keep mine]` ボタンを React JSX で実装する (`createElement` / JSX のみ、`innerHTML` 禁止)
   - `sourceHint` が存在する場合はメッセージに "外部で更新されました (sourceHint)" と表示する
@@ -85,7 +85,7 @@
   - _Requirements: 5.1, 5.5_
   - _Boundary: ExternalChangeBanner_
 
-- [ ] 4.2 DrawioView に banner mount / unmount ロジックを追加する
+- [x] 4.2 DrawioView に banner mount / unmount ロジックを追加する
   - `onExternalChange` 内で `isDirty === true` の場合に banner 専用 `div` を生成し `createRoot` でマウントする
   - 既存 banner が存在する場合は `root.render(...)` で更新する (重複 root 生成しない)
   - `onClose()` / `onUnloadFile()` で banner React root を unmount し container div を remove する
@@ -96,7 +96,7 @@
   - _Boundary: DrawioView, ExternalChangeBanner_
 
 - [ ] 5. Diff Modal 実装
-- [ ] 5.1 `src/views/DiffModal.tsx` に Obsidian Modal + React の Diff Modal を実装する
+- [x] 5.1 `src/views/DiffModal.tsx` に Obsidian Modal + React の Diff Modal を実装する
   - `DiffModal` クラスが `Modal` を継承し `onOpen()` / `onClose()` を実装する
   - `onOpen()` で container に React root をマウントし `currentXml` / `latestXml` の diff を表示する
   - `@codemirror/merge` を `import()` 遅延ロードで試み、失敗時は行単位の簡易 diff にフォールバックする
@@ -106,7 +106,7 @@
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
   - _Boundary: DiffModal_
 
-- [ ] 5.2 DrawioView の banner `[Diff]` ボタンから DiffModal を呼び出す配線を実装する
+- [x] 5.2 DrawioView の banner `[Diff]` ボタンから DiffModal を呼び出す配線を実装する
   - `onDiff` コールバック内で現在 iframe 内 XML を取得する (`bridge.requestExport('xml')` を使用)
   - `readDrawioFile(this.file)` で Vault 最新 XML を取得する
   - `new DiffModal(app, currentXml, latestXml, onReload, onKeepMine).open()` を呼ぶ
@@ -115,7 +115,7 @@
   - _Boundary: DrawioView, DiffModal_
 
 - [ ] 6. Public API 実装
-- [ ] 6.1 `src/lib/plugin-api.ts` に `DrawioPublicApi` インターフェースと `createDrawioPluginApi` 関数を実装する
+- [x] 6.1 `src/lib/plugin-api.ts` に `DrawioPublicApi` インターフェースと `createDrawioPluginApi` 関数を実装する
   - `DrawioPublicApi { version: 1, getDiagramXml, setDiagramXml, requestReload, subscribe }` を定義・実装する
   - `getDiagramXml`: `readDrawioFile(file, vault)` を呼び XML を返す
   - `setDiagramXml`: `writeDrawioFile` で書き込み後に `plugin.events.trigger('drawio:external-change', ...)` を発行する
@@ -127,7 +127,7 @@
   - _Boundary: DrawioPluginApi_
 
 - [ ] 7. Plugin エントリポイントへの統合
-- [ ] 7.1 `src/main.ts` に ExternalWatcher・DrawioPluginApi・コマンドを登録する
+- [x] 7.1 `src/main.ts` に ExternalWatcher・DrawioPluginApi・コマンドを登録する
   - `onload()` で `createExternalWatcher(this, this.app.vault, () => this.settings.drawio.externalSync)` を生成する
   - `onload()` で `this.api = createDrawioPluginApi(this, externalWatcher)` を設定する
   - "Refresh diagram from disk" コマンドを `this.addCommand({ id: 'drawio-refresh-from-disk', name: '...', callback: ... })` で登録する
@@ -139,27 +139,27 @@
   - _Boundary: ObsidianDrawioPlugin_
 
 - [ ] 8. 検証とクリーンアップ
-- [ ] 8.1 外部変更の基本フロー (not dirty → 自動リロード) を手動検証する
+- [x] 8.1 外部変更の基本フロー (not dirty → 自動リロード) を手動検証する
   - Obsidian Desktop で `.drawio` ファイルを開く
   - CLI で XML を書き換える (例: `echo '<mxfile>...</mxfile>' > test.drawio`)
   - 自動リロードされ iframe の内容が更新されることを確認する
   - status bar / Notice が設定どおりに表示されることを確認する
   - _Requirements: 3.1, 3.2, 4.1, 4.2_
 
-- [ ] 8.2 衝突解消 UI フロー (dirty → banner) を手動検証する
+- [x] 8.2 衝突解消 UI フロー (dirty → banner) を手動検証する
   - iframe 内で図を編集 (dirty 状態) にする
   - 外部から XML を書き換える
   - banner が表示されることを確認する
   - `[Reload]` / `[Diff]` / `[Keep mine]` の各ボタンが期待通りに動作することを確認する
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 6.1_
 
-- [ ] 8.3 Public API の動作を手動検証する
+- [x] 8.3 Public API の動作を手動検証する
   - Obsidian の Developer Console で `app.plugins.plugins['obsidian-drawio'].api.getDiagramXml(file)` を実行し XML が返ることを確認する
   - `api.setDiagramXml(file, xml, { reason: 'test' })` で View が更新され "updated by test" の通知が出ることを確認する
   - `api.version` が `1` であることを確認する
   - _Requirements: 8.1, 8.2, 8.3, 8.6, 8.7_
 
-- [ ] 8.4 リソースリークがないことを確認する
+- [x] 8.4 リソースリークがないことを確認する
   - プラグインをアンロード後に Developer Console でメモリ参照が残っていないことを確認する
   - View を閉じた後に `drawio:external-change` リスナーが解除されていることをログで確認する
   - ExternalWatcher の `dispose()` が複数回呼んでも例外が出ないことを確認する

@@ -4,7 +4,10 @@ import { createDrawioBridge, type DrawioBridge } from "../lib/drawio-bridge";
 import { applyLibraries } from "../lib/library-bridge";
 import { resolveDrawioLanguage } from "../lib/language-bridge";
 import type { ExternalChangeEvent } from "../lib/external-watcher";
+import { ExternalChangeBanner } from "./ExternalChangeBanner";
+import { DiffModal } from "./DiffModal";
 import type ObsidianDrawioPlugin from "../main";
+import * as React from "react";
 
 export const DRAWIO_VIEW_TYPE = "drawio";
 
@@ -23,6 +26,8 @@ export class DrawioView extends FileView {
   private _isDirty = false;
   private _lastXml: string | null = null;
   private externalChangeRef: EventRef | null = null;
+  private bannerContainer: HTMLElement | null = null;
+  private bannerDispose: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianDrawioPlugin) {
     super(leaf);
@@ -176,6 +181,70 @@ export class DrawioView extends FileView {
     );
   }
 
+  private mountBanner(ev: ExternalChangeEvent): void {
+    if (!this.bannerContainer) {
+      this.bannerContainer = this.contentEl.createDiv("drawio-banner-host");
+      this.contentEl.insertBefore(this.bannerContainer, this.contentEl.firstChild);
+    }
+    this.bannerDispose?.();
+    this.bannerDispose = this.plugin.reactMountManager.mount(
+      this.bannerContainer,
+      React.createElement(ExternalChangeBanner, {
+        sourceHint: ev.sourceHint,
+        onReload: () => void this.handleBannerReload(),
+        onDiff: () => void this.handleBannerDiff(),
+        onKeepMine: () => void this.handleBannerKeepMine(),
+      }),
+    );
+  }
+
+  private unmountBanner(): void {
+    this.bannerDispose?.();
+    this.bannerDispose = null;
+    this.bannerContainer?.remove();
+    this.bannerContainer = null;
+  }
+
+  private async handleBannerReload(): Promise<void> {
+    if (!this.file) return;
+    try {
+      await this.reload(this.file, { force: true });
+      this.unmountBanner();
+    } catch (err) {
+      console.error("[drawio] banner reload failed:", err);
+      new Notice("ダイアグラムの再読み込みに失敗しました");
+    }
+  }
+
+  private async handleBannerDiff(): Promise<void> {
+    if (!this.file) return;
+    const current = this.getCurrentXml() ?? "";
+    const latestResult = await readDrawioFile(this.file, this.app.vault);
+    const latest = latestResult.xml;
+    new DiffModal(
+      this.app,
+      this.plugin,
+      current,
+      latest,
+      () => void this.handleBannerReload(),
+      () => void this.handleBannerKeepMine(),
+    ).open();
+  }
+
+  private async handleBannerKeepMine(): Promise<void> {
+    if (!this.file) return;
+    const xml = this.getCurrentXml();
+    if (xml == null) return;
+    if (!confirm("現在の編集内容を保存し、外部変更を破棄しますか?")) return;
+    try {
+      await this.handleSave(this.file, xml);
+      this.unmountBanner();
+    } catch (err) {
+      console.error("[drawio] banner keep-mine save failed:", err);
+      new Notice("保存に失敗しました");
+    }
+  }
+
   private async onExternalChange(ev: ExternalChangeEvent): Promise<void> {
     if (ev.type === "rename" && ev.oldPath === this.file?.path) {
       this.file = ev.file;
@@ -199,18 +268,21 @@ export class DrawioView extends FileView {
           await this.reload(this.file);
         } catch (err) {
           if (err instanceof DrawioDirtyReloadError) {
-            // race で dirty になった: banner mount は task 4.2 で実装
+            // race で dirty になった: banner にフォールバック
             console.warn(
               "[drawio] reload failed (became dirty during race); falling back to banner",
             );
+            this.mountBanner(ev);
           } else {
             console.error("[drawio] reload failed:", err);
             new Notice("ダイアグラムの読み込みに失敗しました");
           }
         }
       } else if (this.isDirty) {
-        // dirty: banner は task 4.2 で実装
-        console.debug("[drawio] external change while dirty; banner not yet implemented");
+        this.mountBanner(ev);
+      } else {
+        // autoReloadWhenClean === false: banner 表示
+        this.mountBanner(ev);
       }
     }
   }
@@ -220,6 +292,7 @@ export class DrawioView extends FileView {
       this.plugin.events.offref(this.externalChangeRef);
       this.externalChangeRef = null;
     }
+    this.unmountBanner();
     if (this.bridge && this.plugin.themeBridge) {
       this.plugin.themeBridge.unregisterBridge(this.bridge);
     }
@@ -236,6 +309,7 @@ export class DrawioView extends FileView {
       this.plugin.events.offref(this.externalChangeRef);
       this.externalChangeRef = null;
     }
+    this.unmountBanner();
     this.bridge?.dispose();
     this.bridge = null;
     this._isDirty = false;

@@ -13,6 +13,7 @@ import { createThemeBridge, type ThemeBridge } from "./lib/theme-bridge";
 import { DrawioSettingTab } from "./views/SettingsTab";
 import { DiagramSettingsModal } from "./views/DiagramSettingsModal";
 import { createExternalWatcher, type ExternalWatcher } from "./lib/external-watcher";
+import { createDrawioPluginApi, type DrawioPublicApi } from "./lib/plugin-api";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
@@ -20,6 +21,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
   themeBridge!: ThemeBridge;
   events: Events = new Events();
   externalWatcher: ExternalWatcher | null = null;
+  api!: DrawioPublicApi;
   private disposers: Array<() => void> = [];
 
   async onload(): Promise<void> {
@@ -37,6 +39,9 @@ export default class ObsidianDrawioPlugin extends Plugin {
         this.app.vault,
         () => this.settings.drawio!.externalSync,
       );
+      const apiResult = createDrawioPluginApi(this);
+      this.api = apiResult.api;
+      this.disposers.push(apiResult.dispose);
 
       this.addSettingTab(new DrawioSettingTab(this.app, this));
       registerPerDiagramConfigLifecycle(this);
