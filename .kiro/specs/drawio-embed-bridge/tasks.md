@@ -34,7 +34,7 @@
   - _Boundary: DrawioProtocol_
 
 - [ ] 3. DrawioUrl ヘルパーの実装
-- [ ] 3.1 (P) buildDrawioUrl 純粋関数を実装する
+- [x] 3.1 (P) buildDrawioUrl 純粋関数を実装する
   - `src/lib/drawio-url.ts` を新規作成する
   - `DrawioUrlOptions` インターフェースを定義する (`spin`, `libraries`, `noSaveBtn`, `noExitBtn`, `lang`, `extraParams`)
   - `buildDrawioUrl(basePath: string, opts?: DrawioUrlOptions): string` を実装する
