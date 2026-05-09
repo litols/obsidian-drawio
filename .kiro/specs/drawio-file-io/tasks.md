@@ -10,7 +10,7 @@
   - _Boundary: drawio-embed-bridge.DrawioBridge, drawio-embed-bridge.DrawioOutboundExport_
 
 - [ ] 1. 依存パッケージの追加とビルド設定
-- [ ] 1.1 npm 依存パッケージを追加する
+- [x] 1.1 npm 依存パッケージを追加する
   - `pako`, `png-chunks-extract`, `png-chunks-encode`, `png-chunk-text` を `dependencies` に追加する
   - `@types/pako` を `devDependencies` に追加する
   - `pnpm install` を実行してロックファイルを更新する
