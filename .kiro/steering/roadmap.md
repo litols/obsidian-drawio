@@ -65,8 +65,12 @@ draw.io の本体ロジックは jgraph/drawio (Apache-2.0) を `vendor/drawio` 
 
 ## Specs (dependency order)
 
-- [ ] plugin-foundation — Vite + obsidian-sample-plugin 互換ビルド、manifest.json、Plugin entry、loadData/saveData インフラ、テーマ検出 utility。Dependencies: none
-- [ ] drawio-embed-bridge — vendor/drawio submodule 追加、iframe 配置、postMessage プロトコル (load/autosave/save/export/exit)、host ↔ drawio bus。Dependencies: plugin-foundation
-- [ ] drawio-file-io — `registerView` + `registerExtensions` で `.drawio` / `.drawio.svg` / `.drawio.png` をエディタに登録、3 形式の読み書き (XML 圧縮判定 / SVG content 属性 / PNG zTXt `mxfile` チャンク)、Vault API 経由 I/O。Dependencies: plugin-foundation, drawio-embed-bridge
-- [ ] drawio-settings-and-config — PluginSettingTab (React)、テーマ light/dark/auto 追従、shape libraries / defaultLibraries 設定、per-diagram view 設定の永続化 (mxfile 属性 or sidecar)。Dependencies: plugin-foundation, drawio-embed-bridge
-- [ ] drawio-external-sync — Vault 外編集 (AI エージェント / CLI / 別アプリ) の検知、Notice / status bar 通知、自動 or 手動 reload、ローカル dirty 編集との衝突解消 (3-way merge は無理なので user prompt で resolve)、AI エージェント向け "diagram changed" イベント露出。Dependencies: plugin-foundation, drawio-embed-bridge, drawio-file-io
+- [x] plugin-foundation — Vite + obsidian-sample-plugin 互換ビルド、manifest.json、Plugin entry、loadData/saveData インフラ、テーマ検出 utility。Dependencies: none
+- [x] drawio-embed-bridge — vendor/drawio submodule 追加、iframe 配置、postMessage プロトコル (load/autosave/save/export/exit)、host ↔ drawio bus。Dependencies: plugin-foundation
+- [x] drawio-file-io — `registerView` + `registerExtensions` で `.drawio` / `.drawio.svg` / `.drawio.png` をエディタに登録、3 形式の読み書き (XML 圧縮判定 / SVG content 属性 / PNG zTXt `mxfile` チャンク)、Vault API 経由 I/O。Dependencies: plugin-foundation, drawio-embed-bridge
+- [x] drawio-settings-and-config — PluginSettingTab (React)、テーマ light/dark/auto 追従、shape libraries / defaultLibraries 設定、per-diagram view 設定の永続化 (mxfile 属性 or sidecar)。Dependencies: plugin-foundation, drawio-embed-bridge
+- [x] drawio-external-sync — Vault 外編集 (AI エージェント / CLI / 別アプリ) の検知、Notice / status bar 通知、自動 or 手動 reload、ローカル dirty 編集との衝突解消 (3-way merge は無理なので user prompt で resolve)、AI エージェント向け "diagram changed" イベント露出。Dependencies: plugin-foundation, drawio-embed-bridge, drawio-file-io
+
+> **Status note (2026-05-10)**: 上記 `[x]` は **spec (requirements/design/tasks) 生成完了** を示す。実装はこれから (`/kiro-impl <feature>`)。
+>
+> **実装 wave 順序の注意**: cross-spec review で発覚した整合上、**drawio-file-io と drawio-settings-and-config は同 wave で実装する**ことを推奨 (file-io が legacy トップレベル設定を追加 → settings の `migrateSettings` が `drawio.*` 名前空間へ吸収するため、file-io 単独実装ではコンパイルが通らない可能性)。実装時は file-io spec の `DrawioSettings` 型を settings spec と並走させるか、stub を先に置くこと。

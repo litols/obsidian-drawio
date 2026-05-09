@@ -55,6 +55,19 @@ Skills are located in `.claude/skills/kiro-*/SKILL.md`
 - Keep steering current and verify alignment with `/kiro-spec-status`
 - Follow the user's instructions precisely, and within that scope act autonomously: gather the necessary context and complete the requested work end-to-end in this run, asking questions only when essential information is missing or the instructions are critically ambiguous.
 
+## Model Selection Rules
+- **Planning / specification work uses Opus**, not sonnet. This includes: discovery (`/kiro-discovery`), spec init/requirements/design/tasks generation (`/kiro-spec-*`), validation (`/kiro-validate-*`), cross-spec review, debug skill, and any teammate dispatched from a planning skill.
+- **Implementation work may use Sonnet** (cheaper). This includes: code-writing teammates dispatched from `/kiro-impl`, task-executor subagents, refactor / fix runners.
+- The default global rule "mainはopus、teammateはsonnet" still applies *outside* kiro planning skills, but planning teammates explicitly override to opus.
+- When you spawn a teammate, set the `model` parameter accordingly. Do not silently fall through to sonnet for planning.
+
+## Implementation Rules
+- **Commit incrementally during implementation.** Each completed kiro task (or logical sub-step within a task) should land as its own git commit. Do not batch all tasks into one mega-commit.
+- Commit message format: subject is short imperative (e.g., `feat(plugin-foundation): add Vite CJS build config`). Body references the spec/task id (e.g., `Refs: plugin-foundation task 1.2`).
+- Confirm a clean state before starting (`git status`), keep working tree focused on the spec, and never commit unrelated changes.
+- Do NOT push to remote unless explicitly asked.
+- Subagents executing kiro tasks (task-executor / kiro-impl runners) MUST follow the same rule: commit their own task before reporting completion to the parent.
+
 ## Steering Configuration
 - Load entire `.kiro/steering/` as project memory
 - Default files: `product.md`, `tech.md`, `structure.md`
