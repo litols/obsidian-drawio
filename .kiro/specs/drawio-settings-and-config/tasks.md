@@ -29,7 +29,7 @@
   - _Depends: 1.1_
 
 - [ ] 2. per-diagram 設定永続化モジュールの実装
-- [ ] 2.1 PerDiagramConfig 型と sidecar パスヘルパーを実装する
+- [x] 2.1 PerDiagramConfig 型と sidecar パスヘルパーを実装する
   - `src/lib/per-diagram-config.ts` を新規作成する
   - `PerDiagramConfig` interface (`libraries?`, `theme?`, `math?`, `grid?`) を定義する
   - `sidecarPath(filePath: string): string` 純粋関数を実装する (例: `flow.drawio` → `flow.drawio.json`)
@@ -37,7 +37,7 @@
   - _Requirements: 4.5, 4.6_
   - _Boundary: PerDiagramConfigModule_
 
-- [ ] 2.2 loadPerDiagramConfig / savePerDiagramConfig を実装する
+- [x] 2.2 loadPerDiagramConfig / savePerDiagramConfig を実装する
   - `loadPerDiagramConfig(vault, filePath)` を実装する: sidecar 不存在なら `{}`、JSON パースエラーでも `{}` を返す
   - `savePerDiagramConfig(vault, filePath, config)` を実装する: `vault.adapter.write` でアトミック書き込み、config が空なら sidecar ファイルを削除する
   - `loadPerDiagramConfig` がエラーを throw せずに `{}` を返すことを確認できること
@@ -45,7 +45,7 @@
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 4.9_
   - _Boundary: PerDiagramConfigModule_
 
-- [ ] 2.3 sidecar ライフサイクル (rename / delete) hook を実装する
+- [x] 2.3 sidecar ライフサイクル (rename / delete) hook を実装する
   - `registerPerDiagramConfigLifecycle(plugin: Plugin)` を `src/lib/per-diagram-config.ts` に実装する
   - `plugin.registerEvent(vault.on('rename', (file, oldPath) => ...))` で `.drawio` / `.drawio.svg` / `.drawio.png` のリネーム/移動時に sidecar を追従 rename する。元 sidecar が存在しない場合は no-op
   - `plugin.registerEvent(vault.on('delete', file => ...))` で対応する sidecar も削除する。元 sidecar が存在しない場合は no-op

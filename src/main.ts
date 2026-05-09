@@ -9,6 +9,7 @@ import { createReactMountManager, type ReactMountManager } from "./lib/react-mou
 import { subscribeThemeChange } from "./lib/theme";
 import { registerDemoCommand } from "./commands/demo-command";
 import { DrawioView, DRAWIO_VIEW_TYPE } from "./views/DrawioView";
+import { registerPerDiagramConfigLifecycle } from "./lib/per-diagram-config";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
@@ -29,6 +30,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
       });
       this.disposers.push(disposeTheme);
 
+      registerPerDiagramConfigLifecycle(this);
       this.registerView(DRAWIO_VIEW_TYPE, (leaf) => new DrawioView(leaf, this));
       this.registerExtensions(["drawio"], DRAWIO_VIEW_TYPE);
 
