@@ -13,7 +13,7 @@ export class DrawioDirtyReloadError extends Error {
 }
 
 export class DrawioView extends FileView {
-  protected readonly plugin: ObsidianDrawioPlugin;
+  public readonly plugin: ObsidianDrawioPlugin;
   private bridge: DrawioBridge | null = null;
   protected currentFormat: DrawioFormat = "drawio";
   protected currentCompressed = false;
@@ -148,9 +148,17 @@ export class DrawioView extends FileView {
     });
     this._lastXml = result.xml;
     this._isDirty = false;
+
+    if (this.bridge && this.plugin.themeBridge) {
+      this.plugin.themeBridge.registerBridge(this.bridge);
+      this.plugin.themeBridge.applyTheme(this.bridge);
+    }
   }
 
   async onUnloadFile(_file: TFile): Promise<void> {
+    if (this.bridge && this.plugin.themeBridge) {
+      this.plugin.themeBridge.unregisterBridge(this.bridge);
+    }
     this.bridge?.dispose();
     this.bridge = null;
     this.currentFormat = "drawio";

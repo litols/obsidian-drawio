@@ -6,14 +6,15 @@ import {
   type PluginSettings,
 } from "./lib/settings";
 import { createReactMountManager, type ReactMountManager } from "./lib/react-mount";
-import { subscribeThemeChange } from "./lib/theme";
 import { registerDemoCommand } from "./commands/demo-command";
 import { DrawioView, DRAWIO_VIEW_TYPE } from "./views/DrawioView";
 import { registerPerDiagramConfigLifecycle } from "./lib/per-diagram-config";
+import { createThemeBridge, type ThemeBridge } from "./lib/theme-bridge";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
   reactMountManager!: ReactMountManager;
+  themeBridge!: ThemeBridge;
   private disposers: Array<() => void> = [];
 
   async onload(): Promise<void> {
@@ -24,11 +25,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
       await saveSettings(this, this.settings);
 
       this.reactMountManager = createReactMountManager();
-
-      const disposeTheme = subscribeThemeChange(this, (theme) => {
-        console.debug("[obsidian-drawio] theme changed:", theme);
-      });
-      this.disposers.push(disposeTheme);
+      this.themeBridge = createThemeBridge(this, () => this.settings.drawio!);
 
       registerPerDiagramConfigLifecycle(this);
       this.registerView(DRAWIO_VIEW_TYPE, (leaf) => new DrawioView(leaf, this));
@@ -63,6 +60,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
   }
 
   onunload(): void {
+    this.themeBridge?.dispose();
     for (let i = this.disposers.length - 1; i >= 0; i--) {
       try {
         this.disposers[i]();

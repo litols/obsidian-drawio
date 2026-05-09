@@ -57,7 +57,7 @@
   - _Depends: 2.1, 2.2_
 
 - [ ] 3. ThemeBridge の実装
-- [ ] 3.1 ThemeBridge モジュールを実装する
+- [x] 3.1 ThemeBridge モジュールを実装する
   - `src/lib/theme-bridge.ts` を新規作成する
   - `ThemeBridge` interface (`registerBridge`, `unregisterBridge`, `applyTheme`, `dispose`) を定義する
   - `createThemeBridge(plugin, getSettings)` ファクトリ関数を実装する
@@ -68,7 +68,7 @@
   - _Boundary: ThemeBridge_
   - _Depends: 1.3_
 
-- [ ] 3.2 DrawioView マウント時の初回テーマ適用を実装する
+- [x] 3.2 DrawioView マウント時の初回テーマ適用を実装する
   - `ThemeBridge.applyTheme(bridge)` を DrawioView の mount 後に呼ぶ配線を `src/main.ts` に追加する (drawio-file-io の DrawioView が bridge を公開することを前提とする)
   - 固定テーマの場合はそのテーマ値で、`auto` の場合は `getCurrentTheme()` の戻り値で `setTheme` が呼ばれることを確認できること
   - _Requirements: 3.2, 3.3_
