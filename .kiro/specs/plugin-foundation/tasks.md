@@ -51,7 +51,7 @@
   - _Boundary: ViteConfig_
 
 - [ ] 2. 配布物 (manifest.json / styles.css) の配置
-- [ ] 2.1 (P) manifest.json の作成
+- [x] 2.1 (P) manifest.json の作成
   - プロジェクトルートに `manifest.json` を作成する
   - フィールド: `id: "obsidian-drawio"`、`name: "Drawio"`、`version: "0.1.0"`、`description`、`author`、`isDesktopOnly: true`、`minAppVersion: "1.4.0"`
   - `authorUrl` は任意 (空でも可)

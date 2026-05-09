@@ -1,1 +1,10 @@
-{}
+{
+  "id": "obsidian-drawio",
+  "name": "Drawio",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "View and edit draw.io diagrams (.drawio / .drawio.svg / .drawio.png) directly inside Obsidian.",
+  "author": "litols",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
