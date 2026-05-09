@@ -125,7 +125,7 @@
   - _Requirements: 3.1_
   - _Boundary: ObsidianDrawioPlugin_
 
-- [ ] 4.2 onload の実装
+- [x] 4.2 onload の実装
   - `this.settings = await loadSettings(this)` で設定をロード
   - `this.reactMountManager = createReactMountManager()` で React mount manager を初期化
   - `const dispose = subscribeThemeChange(this, (theme) => { /* 暫定 console.debug */ }); this.disposers.push(dispose);`
