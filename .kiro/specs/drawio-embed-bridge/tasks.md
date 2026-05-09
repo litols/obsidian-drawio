@@ -124,7 +124,7 @@
   - _Depends: 5.1_
 
 - [ ] 6. cleanup・審査要件の検証と統合確認
-- [ ] 6.1 onunload cleanup の検証とリグレッションチェックを行う
+- [x] 6.1 onunload cleanup の検証とリグレッションチェックを行う
   - `ObsidianDrawioPlugin.onunload()` が呼ばれたとき、すべての `DrawioBridge` インスタンスの `dispose()` が呼ばれることを確認する
   - デモコマンドで開いたリーフを手動で閉じたとき iframe が DOM から除去されていることを確認する
   - `dispose()` を複数回呼んでも例外が発生しないことを確認する
