@@ -92,7 +92,7 @@
   - _Requirements: 5.1_
   - _Boundary: ThemeModule_
 
-- [ ] 3.4 subscribeThemeChange 関数の実装
+- [x] 3.4 subscribeThemeChange 関数の実装
   - `subscribeThemeChange(plugin: Plugin, callback: (theme: Theme) => void): () => void` を実装する
   - 実装: `const ref = plugin.app.workspace.on('css-change', () => callback(getCurrentTheme())); return () => plugin.app.workspace.offref(ref);`
   - `plugin.registerEvent` は使用しない (subscriber が Plugin lifetime とは独立に dispose できるようにするため)
