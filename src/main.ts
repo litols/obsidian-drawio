@@ -1,5 +1,10 @@
 import { Plugin, type TFile } from "obsidian";
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, type PluginSettings } from "./lib/settings";
+import {
+  DEFAULT_SETTINGS,
+  migrateSettings,
+  saveSettings,
+  type PluginSettings,
+} from "./lib/settings";
 import { createReactMountManager, type ReactMountManager } from "./lib/react-mount";
 import { subscribeThemeChange } from "./lib/theme";
 import { registerDemoCommand } from "./commands/demo-command";
@@ -12,7 +17,11 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
   async onload(): Promise<void> {
     try {
-      this.settings = await loadSettings(this);
+      const persisted = (await this.loadData()) as Record<string, unknown> | null;
+      const drawioSettings = migrateSettings(persisted);
+      this.settings = { drawio: drawioSettings };
+      await saveSettings(this, this.settings);
+
       this.reactMountManager = createReactMountManager();
 
       const disposeTheme = subscribeThemeChange(this, (theme) => {
@@ -31,8 +40,8 @@ export default class ObsidianDrawioPlugin extends Plugin {
           const isPng = name.endsWith(".drawio.png");
           if (!isSvg && !isPng) return;
 
-          if (isSvg && this.settings.openDrawioSvg !== true) return;
-          if (isPng && this.settings.openDrawioPng !== true) return;
+          if (isSvg && this.settings.drawio?.openDrawioSvg !== true) return;
+          if (isPng && this.settings.drawio?.openDrawioPng !== true) return;
 
           const leaf = this.app.workspace.getMostRecentLeaf();
           if (!leaf) return;

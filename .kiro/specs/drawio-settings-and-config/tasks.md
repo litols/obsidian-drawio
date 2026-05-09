@@ -1,7 +1,7 @@
 # 実装計画: drawio-settings-and-config
 
 - [ ] 1. 設定スキーマ基盤の確立
-- [ ] 1.1 DrawioSettings 型・DEFAULT_SETTINGS・DrawioPluginSettings を定義する
+- [x] 1.1 DrawioSettings 型・DEFAULT_SETTINGS・DrawioPluginSettings を定義する
   - `src/lib/settings.ts` に `DrawioTheme`、`DrawioLanguage`、`DrawioSaveFormat`、`DrawioSettings` interface を追加する
   - `DEFAULT_DRAWIO_SETTINGS` オブジェクトを定義する (theme: 'auto', defaultLibraries: ['general'], 他すべてのデフォルト値)
   - `PluginSettings` を拡張する `DrawioPluginSettings` 型を定義し、`drawio` フィールドを追加する
@@ -9,7 +9,7 @@
   - _Requirements: 1.1, 1.4, 1.5_
   - _Boundary: SettingsModule_
 
-- [ ] 1.2 migrateSettings 関数を実装する
+- [x] 1.2 migrateSettings 関数を実装する
   - `migrateSettings(raw: unknown): DrawioSettings` を `src/lib/settings.ts` に追加する
   - `raw` が null / 非 object の場合は `DEFAULT_DRAWIO_SETTINGS` を返す
   - `settingsVersion` が 0 または undefined の場合にすべての欠損フィールドを DEFAULT で補完する
@@ -20,7 +20,7 @@
   - _Requirements: 1.2, 1.3, 1.6, 1.7, 7.1, 7.2, 7.3, 7.4_
   - _Boundary: SettingsModule_
 
-- [ ] 1.3 resolveBridgeTheme helper を実装する
+- [x] 1.3 resolveBridgeTheme helper を実装する
   - `src/lib/theme-bridge.ts` (または `src/lib/settings.ts`) に `resolveBridgeTheme(setting: DrawioTheme, currentObsidianTheme: 'light' | 'dark'): { setTheme: 'light' | 'dark'; uiVariant?: 'kennedy' | 'min' | 'atlas' | 'dark' }` を追加する
   - design.md のマッピング表に従って実装する (auto → currentObsidianTheme、light/kennedy/min/atlas → 'light' + 該当 uiVariant、dark → 'dark')
   - 全 6 ケース (auto-light, auto-dark, light, dark, kennedy, min, atlas) のテーブル駆動ユニットテストが pass すること
