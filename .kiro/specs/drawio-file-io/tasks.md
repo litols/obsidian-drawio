@@ -43,7 +43,7 @@
   - _Requirements: 2.3, 2.4, 2.7, 3.3_
   - _Boundary: DrawioSvg_
 
-- [ ] 3.3 (P) `.drawio.png` PNG reader/writer を実装する
+- [x] 3.3 (P) `.drawio.png` PNG reader/writer を実装する
   - `src/lib/drawio-formats/drawio-png.ts` を作成する
   - `readDrawioPng(buffer: ArrayBuffer): string` を実装する: `pngChunksExtract(new Uint8Array(buffer))` → チャンク配列を走査し `name === 'zTXt' || name === 'tEXt'` かつ `pngChunkText.decode(data).keyword === 'mxfile'` のチャンクの `text` を返す; 見つからない場合は `'<mxGraphModel/>'` を返して `console.warn` を出力する
   - `writeDrawioPngWithMxfile(existingPng: ArrayBuffer, newMxfileXml: string): ArrayBuffer` を実装する: 既存チャンクを取得 → 既存 `mxfile` チャンクがあれば置換、無ければ IEND の直前に挿入 → 他のチャンク (IHDR / IDAT / IEND / pHYs / sRGB 等) は byte-for-byte 維持 → `pngChunksEncode` で再エンコードして `ArrayBuffer` を返す
