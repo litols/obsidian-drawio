@@ -5,6 +5,7 @@
     "node_modules",
     ".tmp",
     ".kiro",
+    "vendor",
     "**/*.md",
     "**/*.css",
     "**/*.json"

@@ -113,3 +113,9 @@
 - **Rationale**: `v30.0.0` はメジャーバージョンのため安定性不明。最新マイナー安定版 `v29.7.12` を採用
 - **Path**: `vendor/drawio`
 - **shallow = true**: `.gitmodules` に設定済み (clone コスト削減)
+
+## License redistribution
+
+- **LICENSE**: `vendor/drawio/LICENSE` を `dist/drawio/LICENSE` に同梱 (`vite.config.ts` の `viteStaticCopy` targets)
+- **NOTICE**: `vendor/drawio` upstream に `NOTICE` ファイルは **存在しない** (`v29.7.12` 時点)。Apache-2.0 §4(d) は "If the Work includes a NOTICE text file..." と条件付き要求のため、upstream が NOTICE を持たない以上、配布物に同梱する義務は発生しない。このため `dist/drawio/NOTICE` は生成しない。
+- **README 表記**: 別 task (6.3) で `Bundles draw.io ([Apache-2.0](...))` を README に追記する。

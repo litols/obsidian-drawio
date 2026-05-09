@@ -16,6 +16,12 @@ export default defineConfig({
       targets: [
         { src: "manifest.json", dest: "." },
         { src: "styles.css", dest: "." },
+        {
+          src: "vendor/drawio/src/main/webapp/**/*",
+          dest: "drawio",
+          rename: { stripBase: 5 },
+        },
+        { src: "vendor/drawio/LICENSE", dest: "drawio", rename: { stripBase: 2 } },
       ],
     }),
   ],

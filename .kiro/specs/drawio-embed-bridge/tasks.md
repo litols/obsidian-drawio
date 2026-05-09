@@ -11,7 +11,7 @@
   - _Requirements: 1.1, 1.3, 1.6, 7.7_
   - _Boundary: VendorSubmodule_
 
-- [ ] 1.2 vite.config.ts に drawio webapp コピー設定を追加する
+- [x] 1.2 vite.config.ts に drawio webapp コピー設定を追加する
   - 前提: `vite-plugin-static-copy` は plugin-foundation で既に導入済み。本タスクでは `targets` 配列のみ拡張する
   - `targets` に `{ src: 'vendor/drawio/src/main/webapp/**', dest: 'drawio' }` を追加する
   - LICENSE / NOTICE 同梱用エントリ `{ src: 'vendor/drawio/LICENSE', dest: 'drawio' }` と `{ src: 'vendor/drawio/NOTICE', dest: 'drawio' }` も追加する
