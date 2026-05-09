@@ -80,7 +80,7 @@
   - _Requirements: 1.1, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
   - _Boundary: DrawioView_
 
-- [ ] 4.2 dirty フラグ・getCurrentXml・reload API を実装する
+- [x] 4.2 dirty フラグ・getCurrentXml・reload API を実装する
   - `DrawioView` に `private _isDirty = false` と `private _lastXml: string | null = null` を追加し、`get isDirty(): boolean` getter / `getCurrentXml(): string | null` を実装する
   - `DrawioBridgeCallbacks.onAutosave` / `onSave` 受信時に `_lastXml = xml` を更新し `_isDirty = true` にセットする
   - `DrawioDirtyReloadError extends Error` クラスを export する（`name='DrawioDirtyReloadError'`）
