@@ -75,7 +75,7 @@
   - _Boundary: DrawioBridge_
   - _Depends: 4.1_
 
-- [ ] 4.3 (P) DrawioBridge の outbound API を実装する
+- [x] 4.3 (P) DrawioBridge の outbound API を実装する
   - `load(xml)` で `{action: 'load', xml}` を postMessage する
   - `replaceContent(xml)` で `{action: 'merge', xml}` を postMessage する (load との使い分けは design.md の Service Interface コメント参照)
   - `requestSave()` で `{action: 'load', xml: <現在キャッシュした XML>, autosave: 1}` 相当の保存要求を送る (drawio embed 仕様に従う)
@@ -89,7 +89,7 @@
   - _Boundary: DrawioBridge_
   - _Depends: 4.1_
 
-- [ ] 4.4 DrawioExportFormat union を `'xmlpng' | 'xmlsvg'` で additive 拡張する (downstream coordination: drawio-file-io)
+- [x] 4.4 DrawioExportFormat union を `'xmlpng' | 'xmlsvg'` で additive 拡張する (downstream coordination: drawio-file-io)
   - `DrawioExportFormat` を `'png' | 'svg' | 'xml' | 'pdf' | 'xmlpng' | 'xmlsvg'` に拡張する (`src/lib/drawio-bridge.ts` または型定義モジュール)
   - `DrawioOutboundExport.format` (`src/lib/drawio-protocol.ts`) を同じ union に拡張する
   - `requestExport(format)` の実装は format をそのまま postMessage するため変更不要 (string パススルー); 拡張は純粋に additive で既存 union メンバの挙動に影響しない

@@ -38,6 +38,7 @@ export function createDrawioBridge(app: App): DrawioBridge {
   let messageHandler: ((event: MessageEvent) => void) | null = null;
   let callbacks: DrawioBridgeCallbacks = {};
   let initialXml = "";
+  let lastKnownXml = "";
   let mounted = false;
 
   function disposeInternal(): void {
@@ -48,12 +49,25 @@ export function createDrawioBridge(app: App): DrawioBridge {
     }
     callbacks = {};
     initialXml = "";
+    lastKnownXml = "";
     if (iframe) {
       iframe.src = "about:blank";
       iframe.remove();
       iframe = null;
     }
     mounted = false;
+  }
+
+  function sendMessageInternal(msg: DrawioOutbound): void {
+    if (!mounted) {
+      console.warn("[DrawioBridge] sendMessage() called before mount");
+      return;
+    }
+    if (!iframe?.contentWindow) {
+      console.warn("[DrawioBridge] sendMessage() called with null contentWindow");
+      return;
+    }
+    iframe.contentWindow.postMessage(JSON.stringify(msg), "*");
   }
 
   function handleMessage(event: MessageEvent): void {
@@ -67,14 +81,16 @@ export function createDrawioBridge(app: App): DrawioBridge {
     }
     switch (msg.event) {
       case "init":
-        iframe.contentWindow?.postMessage(JSON.stringify({ action: "load", xml: initialXml }), "*");
+        sendMessageInternal({ action: "load", xml: initialXml });
         break;
       case "load":
         break;
       case "save":
+        lastKnownXml = msg.xml;
         callbacks.onSave?.(msg.xml, msg.exit);
         break;
       case "autosave":
+        lastKnownXml = msg.xml;
         callbacks.onAutosave?.(msg.xml);
         break;
       case "export":
@@ -120,6 +136,7 @@ export function createDrawioBridge(app: App): DrawioBridge {
 
       callbacks = opts?.callbacks ?? {};
       initialXml = opts?.initialXml ?? "";
+      lastKnownXml = initialXml;
 
       messageHandler = handleMessage;
       window.addEventListener("message", messageHandler);
@@ -132,32 +149,35 @@ export function createDrawioBridge(app: App): DrawioBridge {
       disposeInternal();
     },
 
-    load(_xml: string): void {
-      console.warn("[DrawioBridge] load() not yet implemented (task 4.3)");
+    load(xml: string): void {
+      sendMessageInternal({ action: "load", xml });
     },
 
-    replaceContent(_xml: string): void {
-      console.warn("[DrawioBridge] replaceContent() not yet implemented (task 4.3)");
+    replaceContent(xml: string): void {
+      sendMessageInternal({ action: "merge", xml });
     },
 
     requestSave(): void {
-      console.warn("[DrawioBridge] requestSave() not yet implemented (task 4.3)");
+      sendMessageInternal({ action: "load", xml: lastKnownXml, autosave: 1 });
     },
 
-    requestExport(_format: DrawioExportFormat): void {
-      console.warn("[DrawioBridge] requestExport() not yet implemented (task 4.3)");
+    requestExport(format: DrawioExportFormat): void {
+      sendMessageInternal({ action: "export", format });
     },
 
-    setTheme(_theme: "light" | "dark"): void {
-      console.warn("[DrawioBridge] setTheme() not yet implemented (task 4.3)");
+    setTheme(theme: "light" | "dark"): void {
+      sendMessageInternal({
+        action: "configure",
+        config: { ui: theme === "dark" ? "dark" : "kennedy" },
+      });
     },
 
-    setLibraries(_libs: ReadonlyArray<{ title: string; entries: unknown[] }>): void {
-      console.warn("[DrawioBridge] setLibraries() not yet implemented (task 4.3)");
+    setLibraries(libs: ReadonlyArray<{ title: string; entries: unknown[] }>): void {
+      sendMessageInternal({ action: "configure", config: { libraries: libs } });
     },
 
-    sendMessage(_msg: DrawioOutbound): void {
-      console.warn("[DrawioBridge] sendMessage() not yet implemented (task 4.3)");
+    sendMessage(msg: DrawioOutbound): void {
+      sendMessageInternal(msg);
     },
   };
 }
