@@ -115,7 +115,7 @@
   - _Boundary: DemoCommand_
   - _Depends: 4.1, 4.2, 4.3_
 
-- [ ] 5.2 src/main.ts に DemoCommand を登録する
+- [x] 5.2 src/main.ts に DemoCommand を登録する
   - `ObsidianDrawioPlugin.onload()` 内で `registerDemoCommand(this)` を呼び出す
   - import を `src/commands/demo-command.ts` から追加する
   - 完了条件: `pnpm build` がエラーなく通り、Obsidian に plugin をロードするとコマンドが登録される

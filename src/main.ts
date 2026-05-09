@@ -2,6 +2,7 @@ import { Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type PluginSettings } from "./lib/settings";
 import { createReactMountManager, type ReactMountManager } from "./lib/react-mount";
 import { subscribeThemeChange } from "./lib/theme";
+import { registerDemoCommand } from "./commands/demo-command";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
@@ -17,6 +18,8 @@ export default class ObsidianDrawioPlugin extends Plugin {
         console.debug("[obsidian-drawio] theme changed:", theme);
       });
       this.disposers.push(disposeTheme);
+
+      registerDemoCommand(this);
     } catch (error) {
       console.error("[obsidian-drawio] onload failed:", error);
     }
