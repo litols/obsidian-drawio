@@ -1,7 +1,7 @@
 # 実装計画: drawio-embed-bridge
 
 - [ ] 1. vendor/drawio submodule の取り込みと配布パイプラインのセットアップ
-- [ ] 1.1 vendor/drawio git submodule を追加し特定 release タグに固定する
+- [x] 1.1 vendor/drawio git submodule を追加し特定 release タグに固定する
   - `git submodule add https://github.com/jgraph/drawio.git vendor/drawio` を実行する
   - `vendor/drawio` 内で `git tag --sort=-creatordate | head -5` を確認し、最新の安定 release タグ (例: `v24.7.17`) を選定する。選定したタグ値は `.kiro/specs/drawio-embed-bridge/research.md` の「References」末尾と README に明記する
   - `git -C vendor/drawio checkout <選定タグ>` でコミットを固定する
