@@ -31,7 +31,7 @@
   - _Requirements: 7.4, 7.5_
   - _Boundary: TypeScript 設定_
 
-- [ ] 1.4 (P) oxlint/oxfmt の dist/ 除外確認
+- [x] 1.4 (P) oxlint/oxfmt の dist/ 除外確認
   - `.oxlintrc.json` の `ignorePatterns` に `dist` が含まれていることを確認 (既に存在する)
   - oxfmt の format 対象から `dist/` を除外する設定があれば追加する (現状デフォルトで `node_modules` / `dist` は除外)
   - _Verify:_ `pnpm lint` が `dist/` を検査せず通過する / `pnpm format:check` が通過する
