@@ -134,7 +134,7 @@
   - _Requirements: 3.2, 4.2, 5.2_
   - _Boundary: ObsidianDrawioPlugin_
 
-- [ ] 4.3 onunload の実装
+- [x] 4.3 onunload の実装
   - `this.disposers` を逆順で iterate し各 dispose 関数を呼ぶ (try/catch で個別エラーをログし継続)
   - `this.reactMountManager?.unmountAll()` を呼ぶ
   - `this.disposers = []` でクリア

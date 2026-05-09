@@ -23,8 +23,15 @@ export default class ObsidianDrawioPlugin extends Plugin {
   }
 
   onunload(): void {
-    for (const dispose of this.disposers) dispose();
-    this.reactMountManager.unmountAll();
+    for (let i = this.disposers.length - 1; i >= 0; i--) {
+      try {
+        this.disposers[i]();
+      } catch (error) {
+        console.error("[obsidian-drawio] dispose failed:", error);
+      }
+    }
+    this.disposers = [];
+    this.reactMountManager?.unmountAll();
   }
 
   async saveSettings(): Promise<void> {
