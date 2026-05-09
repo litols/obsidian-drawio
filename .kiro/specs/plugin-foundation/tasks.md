@@ -74,7 +74,7 @@
   - _Requirements: 4.1, 4.4_
   - _Boundary: SettingsModule_
 
-- [ ] 3.2 loadSettings / saveSettings ヘルパーの実装
+- [x] 3.2 loadSettings / saveSettings ヘルパーの実装
   - `loadSettings(plugin: Plugin): Promise<PluginSettings>` を実装する
     - `const persisted = (await plugin.loadData()) ?? {}; return Object.assign({}, DEFAULT_SETTINGS, persisted);`
   - `saveSettings(plugin: Plugin, settings: PluginSettings): Promise<void>` を実装する
