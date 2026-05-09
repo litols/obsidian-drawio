@@ -114,7 +114,7 @@
   - _Boundary: ReactMountModule_
 
 - [ ] 4. Plugin エントリポイントの実装
-- [ ] 4.1 ObsidianDrawioPlugin クラスの骨格
+- [x] 4.1 ObsidianDrawioPlugin クラスの骨格
   - `src/main.ts` を作成する
   - `obsidian` の `Plugin` を継承した `export default class ObsidianDrawioPlugin extends Plugin` を実装する
   - public プロパティ: `settings!: PluginSettings`、`reactMountManager!: ReactMountManager`
