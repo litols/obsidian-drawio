@@ -21,7 +21,7 @@
   - _Requirements: 7.2, 7.3_
   - _Boundary: package.json_
 
-- [ ] 1.3 (P) tsconfig.app.json の調整
+- [x] 1.3 (P) tsconfig.app.json の調整
   - `target` を `"ES2018"` に変更する
   - `lib` を `["ES2018", "DOM", "DOM.Iterable"]` に変更する
   - `types` を `["node"]` に変更する (`vite/client` は不要、Obsidian plugin はブラウザ環境で `import.meta.env` を使わない)
