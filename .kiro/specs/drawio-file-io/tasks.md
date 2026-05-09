@@ -99,7 +99,7 @@
   - _Requirements: 3.1, 3.2, 3.5, 3.6_
   - _Boundary: DrawioView_
 
-- [ ] 5.2 SVG / PNG の export 経由保存ハンドラを実装する
+- [x] 5.2 SVG / PNG の export 経由保存ハンドラを実装する
   - `DrawioView` の `onSave(xml)` / `onAutosave(xml)` コールバックで `currentFormat === 'drawio-svg'` の場合は `bridge.requestExport('xmlsvg')`、`'drawio-png'` の場合は `bridge.requestExport('xmlpng')` を呼ぶ
   - `onExport(data, format)` コールバック内で format が `'xmlsvg'` / `'xmlpng'` であることを検証 (期待外は無視 + log) → `atob(data)` → `Uint8Array.buffer` を構築し、`writeDrawioFile` 経由で SVG は `{kind:'svg', exportedSvg: utf8Decoded}` (Vault.modify)、PNG は `{kind:'png', exportedPng: arrayBuffer}` (Vault.modifyBinary) で書き込む
   - export タイムアウト（10 秒）を `Promise.race` で実装し、タイムアウト時は `new Notice('drawio export timed out')` を表示して `isDirty = true` を維持する

@@ -57,17 +57,62 @@ export class DrawioView extends FileView {
   }
 
   private async handleSave(file: TFile, xml: string): Promise<void> {
-    if (this.currentFormat !== "drawio") {
-      // .drawio.svg / .drawio.png は task 5.2 で対応
+    if (this.currentFormat === "drawio") {
+      try {
+        await writeDrawioFile(file, this.app.vault, { kind: "xml", xml }, "drawio", {
+          compressed: this.currentCompressed,
+        });
+        this._isDirty = false;
+      } catch (error) {
+        console.error("[drawio-view] save failed:", error);
+        new Notice(`drawio: failed to save ${file.name}`);
+      }
       return;
     }
+
+    if (this.currentFormat === "drawio-svg") {
+      this.bridge?.requestExport("xmlsvg");
+    } else if (this.currentFormat === "drawio-png") {
+      this.bridge?.requestExport("xmlpng");
+    }
+  }
+
+  private async handleExportResult(file: TFile, data: string, format: string): Promise<void> {
     try {
-      await writeDrawioFile(file, this.app.vault, { kind: "xml", xml }, "drawio", {
-        compressed: this.currentCompressed,
-      });
-      this._isDirty = false;
+      if (format === "xmlsvg" && this.currentFormat === "drawio-svg") {
+        let svg: string;
+        if (data.startsWith("data:")) {
+          const base64 = data.slice(data.indexOf(",") + 1);
+          svg = atob(base64);
+        } else {
+          svg = data;
+        }
+        await writeDrawioFile(
+          file,
+          this.app.vault,
+          { kind: "svg", exportedSvg: svg },
+          "drawio-svg",
+        );
+        this._isDirty = false;
+      } else if (format === "xmlpng" && this.currentFormat === "drawio-png") {
+        const base64 = data.startsWith("data:") ? data.slice(data.indexOf(",") + 1) : data;
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        await writeDrawioFile(
+          file,
+          this.app.vault,
+          { kind: "png", exportedPng: bytes.buffer as ArrayBuffer },
+          "drawio-png",
+        );
+        this._isDirty = false;
+      } else {
+        console.warn(
+          `[drawio-view] unexpected export format=${format} for currentFormat=${this.currentFormat}`,
+        );
+      }
     } catch (error) {
-      console.error("[drawio-view] save failed:", error);
+      console.error("[drawio-view] export save failed:", error);
       new Notice(`drawio: failed to save ${file.name}`);
     }
   }
@@ -95,6 +140,9 @@ export class DrawioView extends FileView {
           this._lastXml = xml;
           this._isDirty = true;
           void this.handleSave(file, xml);
+        },
+        onExport: (data, format) => {
+          void this.handleExportResult(file, data, format);
         },
       },
     });
