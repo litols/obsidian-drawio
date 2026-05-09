@@ -1,1 +1,8 @@
-/* placeholder */
+/*
+ * obsidian-drawio plugin styles
+ *
+ * Currently empty -- styles will be added by downstream specs:
+ * - drawio-embed-bridge (iframe container styles)
+ * - drawio-settings-and-config (settings tab styles)
+ * - drawio-external-sync (banner / notification styles)
+ */

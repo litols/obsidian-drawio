@@ -59,7 +59,7 @@
   - _Requirements: 2.1, 2.5, 2.6_
   - _Boundary: ManifestJson_
 
-- [ ] 2.2 (P) styles.css の作成
+- [x] 2.2 (P) styles.css の作成
   - プロジェクトルートに `styles.css` を作成する (コメントヘッダのみで可)
   - _Verify:_ `pnpm build` 後に `dist/styles.css` が存在する
   - _Requirements: 2.3_
