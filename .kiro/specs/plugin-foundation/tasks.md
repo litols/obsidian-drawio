@@ -144,7 +144,7 @@
   - _Boundary: ObsidianDrawioPlugin_
 
 - [ ] 5. 統合検証
-- [ ] 5.1 ビルド成果物の検証
+- [x] 5.1 ビルド成果物の検証
   - `pnpm build` を実行し `dist/main.js`、`dist/manifest.json`、`dist/styles.css` の 3 ファイルが生成されることを確認
   - `dist/main.js` が CJS であることを確認: `head -c 200 dist/main.js` で `"use strict"` または `require(` を含む / `grep -c 'module.exports' dist/main.js` が 1 以上
   - `grep -c 'require("obsidian")' dist/main.js` が 1 以上 (external が機能している)
@@ -153,7 +153,7 @@
   - _Requirements: 1.1, 1.2, 1.4, 1.5, 2.2, 2.3_
   - _Boundary: ViteConfig, ManifestJson, StylesCss_
 
-- [ ] 5.2 (P) 型チェック / lint / format 通過確認
+- [x] 5.2 (P) 型チェック / lint / format 通過確認
   - `pnpm build` (内部で `tsc -b` 込み) がエラーなしで完了
   - `pnpm lint` が通過 (`dist/` は除外されている)
   - `pnpm format:check` が通過
