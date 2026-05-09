@@ -23,7 +23,7 @@
   - _Depends: 1.1_
 
 - [ ] 2. DrawioInbound / DrawioOutbound 型定義の実装
-- [ ] 2.1 (P) DrawioProtocol モジュールを実装する
+- [x] 2.1 (P) DrawioProtocol モジュールを実装する
   - `src/lib/drawio-protocol.ts` を新規作成する
   - `DrawioInbound` を `event` フィールドの discriminated union として定義する (init / load / autosave / save / export / exit / dialog / prompt)
   - `DrawioOutbound` を `action` フィールドの discriminated union として定義する (load / merge / configure / layout / export)
