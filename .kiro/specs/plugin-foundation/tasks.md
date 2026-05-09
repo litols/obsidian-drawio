@@ -3,7 +3,7 @@
 並列マーカ `(P)` 付きタスクは同一フェーズ内で並列実行可能。各 atomic タスクには検証コマンドを `_Verify:_` として添付する。
 
 - [ ] 1. ビルド構成とプロジェクト整理
-- [ ] 1.1 SPA テンプレートファイルの除去
+- [x] 1.1 SPA テンプレートファイルの除去
   - `src/App.tsx`、`src/main.tsx`、`src/App.css`、`src/index.css` を削除する
   - `src/assets/` ディレクトリ (`hero.png`、`vite.svg`、`react.svg`) を削除する
   - `index.html` を削除する
