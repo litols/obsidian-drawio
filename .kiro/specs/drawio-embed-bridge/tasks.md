@@ -101,7 +101,7 @@
   - _Depends: 4.3_
 
 - [ ] 5. 疎通確認用デモコマンドの実装
-- [ ] 5.1 DemoCommand モジュールを実装する
+- [x] 5.1 DemoCommand モジュールを実装する
   - `src/commands/` ディレクトリを作成する
   - `src/commands/demo-command.ts` を新規作成する
   - `DEMO_VIEW_TYPE = 'drawio-demo'` を定義する
