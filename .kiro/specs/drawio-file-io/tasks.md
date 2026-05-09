@@ -28,7 +28,7 @@
   - _Boundary: SettingsModule_
 
 - [ ] 3. Format ライブラリの実装（3 形式 reader/writer）
-- [ ] 3.1 (P) `.drawio` XML reader/writer を実装する
+- [x] 3.1 (P) `.drawio` XML reader/writer を実装する
   - `src/lib/drawio-formats/drawio-xml.ts` を作成する
   - `readDrawioXml(content: string): { xml: string; compressed: boolean }` を実装する: 平文 XML（`<mxfile`または`<mxGraphModel`で始まる）はそのまま返し、`<diagram>` 内容が Base64 文字列なら `pako.inflateRaw` + TextDecoder で XML を復元する
   - `writeDrawioXml(xml: string, compressed: boolean): string` を実装する: `compressed: true` の場合は TextEncoder → `pako.deflateRaw` → `btoa` → `<mxfile><diagram>...</diagram></mxfile>` に包む
