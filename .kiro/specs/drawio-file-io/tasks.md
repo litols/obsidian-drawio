@@ -1,7 +1,7 @@
 # Implementation Plan
 
 - [ ] 0. drawio-embed-bridge の format union 拡張（upstream coordination）
-- [ ] 0.1 `DrawioOutboundExport.format` と `DrawioBridge.requestExport` の format パラメータを `'png' | 'svg' | 'xml' | 'pdf' | 'xmlpng' | 'xmlsvg'` に拡張する
+- [x] 0.1 `DrawioOutboundExport.format` と `DrawioBridge.requestExport` の format パラメータを `'png' | 'svg' | 'xml' | 'pdf' | 'xmlpng' | 'xmlsvg'` に拡張する
   - 対象ファイル: `src/lib/drawio-protocol.ts`, `src/lib/drawio-bridge.ts` (drawio-embed-bridge spec の所有領域)
   - 既存 union メンバの挙動は変更しない（純粋に additive）
   - drawio-embed-bridge の単体テスト / 型チェックがすべて通ることを確認する
