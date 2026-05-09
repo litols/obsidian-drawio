@@ -84,7 +84,7 @@
   - _Requirements: 4.2, 4.3, 4.5, 4.6_
   - _Boundary: SettingsModule_
 
-- [ ] 3.3 (P) getCurrentTheme 関数の実装
+- [x] 3.3 (P) getCurrentTheme 関数の実装
   - `src/lib/theme.ts` を作成する
   - `export type Theme = 'light' | 'dark'` を export する
   - `export function getCurrentTheme(): Theme` を実装する。`document.body.classList.contains('theme-dark') ? 'dark' : 'light'`
