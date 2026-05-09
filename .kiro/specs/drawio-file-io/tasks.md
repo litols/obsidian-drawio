@@ -109,7 +109,7 @@
   - _Boundary: DrawioView_
 
 - [ ] 6. Plugin への View 登録と拡張子ルーティング
-- [ ] 6.1 registerView と registerExtensions を Plugin に追加する
+- [x] 6.1 registerView と registerExtensions を Plugin に追加する
   - `src/main.ts` の `onload()` に `this.registerView(DRAWIO_VIEW_TYPE, leaf => new DrawioView(leaf, this))` を追加する
   - `this.registerExtensions(['drawio'], DRAWIO_VIEW_TYPE)` を追加する
   - `.drawio` ファイルをクリックすると drawio ビューが開くことを Obsidian Desktop で確認する
