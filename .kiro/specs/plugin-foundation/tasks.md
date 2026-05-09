@@ -11,7 +11,7 @@
   - _Requirements: 7.1_
   - _Boundary: プロジェクト構造_
 
-- [ ] 1.2 (P) package.json の整理
+- [x] 1.2 (P) package.json の整理
   - `scripts.dev` を `"vite build --watch"` に変更する
   - `scripts.build` を `"tsc -b && vite build"` のまま維持する
   - `scripts.preview` は削除する (lib モードでは無意味)

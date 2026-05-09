@@ -4,12 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite build --watch",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "format": "oxfmt",
-    "format:check": "oxfmt --check",
-    "preview": "vite preview"
+    "format:check": "oxfmt --check"
   },
   "dependencies": {
     "react": "^19.2.5",
@@ -20,9 +19,11 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "obsidian": "^1.12.3",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
     "typescript": "~6.0.2",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vite-plugin-static-copy": "^4.1.0"
   }
 }
