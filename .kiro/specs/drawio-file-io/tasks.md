@@ -91,7 +91,7 @@
   - _Boundary: DrawioView_
 
 - [ ] 5. 保存ハンドラの実装（3 形式対応）
-- [ ] 5.1 `.drawio` ファイルの保存ハンドラを実装する
+- [x] 5.1 `.drawio` ファイルの保存ハンドラを実装する
   - `DrawioView` の `onSave(xml)` / `onAutosave(xml)` コールバックで `currentFormat === 'drawio'` の場合に `writeDrawioFile(file, vault, {kind:'xml', xml}, 'drawio', { compressed: this.currentCompressed })` を呼ぶ
   - 成功時に `_isDirty = false` にセットし、失敗時に `console.error` と `new Notice(...)` を呼んで `_isDirty = true` を維持する
   - `.drawio` ファイルを編集後保存すると Vault のファイルが更新され、元が圧縮形式なら圧縮形式のまま書き戻ることを確認する

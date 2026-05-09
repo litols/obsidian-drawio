@@ -1,5 +1,5 @@
-import { FileView, type TFile, type WorkspaceLeaf } from "obsidian";
-import { readDrawioFile, type DrawioFormat } from "../lib/drawio-formats";
+import { FileView, Notice, type TFile, type WorkspaceLeaf } from "obsidian";
+import { readDrawioFile, writeDrawioFile, type DrawioFormat } from "../lib/drawio-formats";
 import { createDrawioBridge, type DrawioBridge } from "../lib/drawio-bridge";
 import type ObsidianDrawioPlugin from "../main";
 
@@ -56,6 +56,22 @@ export class DrawioView extends FileView {
     }
   }
 
+  private async handleSave(file: TFile, xml: string): Promise<void> {
+    if (this.currentFormat !== "drawio") {
+      // .drawio.svg / .drawio.png は task 5.2 で対応
+      return;
+    }
+    try {
+      await writeDrawioFile(file, this.app.vault, { kind: "xml", xml }, "drawio", {
+        compressed: this.currentCompressed,
+      });
+      this._isDirty = false;
+    } catch (error) {
+      console.error("[drawio-view] save failed:", error);
+      new Notice(`drawio: failed to save ${file.name}`);
+    }
+  }
+
   async onLoadFile(file: TFile): Promise<void> {
     const result = await readDrawioFile(file, this.app.vault);
     this.currentFormat = result.format;
@@ -73,10 +89,12 @@ export class DrawioView extends FileView {
         onAutosave: (xml) => {
           this._lastXml = xml;
           this._isDirty = true;
+          void this.handleSave(file, xml);
         },
         onSave: (xml) => {
           this._lastXml = xml;
           this._isDirty = true;
+          void this.handleSave(file, xml);
         },
       },
     });
