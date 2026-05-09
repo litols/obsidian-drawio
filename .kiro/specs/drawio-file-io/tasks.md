@@ -70,7 +70,7 @@
   - _Boundary: FormatIndex_
 
 - [ ] 4. DrawioView の実装
-- [ ] 4.1 DrawioView クラスの基本構造を実装する
+- [x] 4.1 DrawioView クラスの基本構造を実装する
   - `src/views/DrawioView.ts` を作成する
   - `DRAWIO_VIEW_TYPE = 'drawio'` を export する
   - `FileView` を継承した `DrawioView` クラスを実装する: `getViewType()`, `getDisplayText()`, `onLoadFile(file)`, `onUnloadFile(file)` を実装する
