@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import { Plugin, type TFile } from "obsidian";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type PluginSettings } from "./lib/settings";
 import { createReactMountManager, type ReactMountManager } from "./lib/react-mount";
 import { subscribeThemeChange } from "./lib/theme";
@@ -22,6 +22,28 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
       this.registerView(DRAWIO_VIEW_TYPE, (leaf) => new DrawioView(leaf, this));
       this.registerExtensions(["drawio"], DRAWIO_VIEW_TYPE);
+
+      this.registerEvent(
+        this.app.workspace.on("file-open", async (file: TFile | null) => {
+          if (!file) return;
+          const name = file.name.toLowerCase();
+          const isSvg = name.endsWith(".drawio.svg");
+          const isPng = name.endsWith(".drawio.png");
+          if (!isSvg && !isPng) return;
+
+          if (isSvg && this.settings.openDrawioSvg !== true) return;
+          if (isPng && this.settings.openDrawioPng !== true) return;
+
+          const leaf = this.app.workspace.getMostRecentLeaf();
+          if (!leaf) return;
+          if (leaf.view?.getViewType() === DRAWIO_VIEW_TYPE) return;
+
+          await leaf.setViewState({
+            type: DRAWIO_VIEW_TYPE,
+            state: { file: file.path },
+          });
+        }),
+      );
 
       registerDemoCommand(this);
     } catch (error) {

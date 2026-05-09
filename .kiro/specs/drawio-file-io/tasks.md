@@ -117,7 +117,7 @@
   - _Requirements: 1.1, 1.2, 1.5_
   - _Boundary: ObsidianDrawioPlugin_
 
-- [ ] 6.2 `.drawio.svg` / `.drawio.png` のファイルオープン hook を追加する
+- [x] 6.2 `.drawio.svg` / `.drawio.png` のファイルオープン hook を追加する
   - `this.registerEvent(this.app.workspace.on('file-open', ...))` で開かれたファイルの末尾を判定する
   - `settings.drawio.openDrawioSvg === true` かつ `file.name.endsWith('.drawio.svg')` の場合は `leaf.setViewState({ type: DRAWIO_VIEW_TYPE, state: { file: file.path } })` でビューを切り替える
   - `settings.drawio.openDrawioPng === true` かつ `file.name.endsWith('.drawio.png')` の場合も同様に切り替える
@@ -128,7 +128,7 @@
   - _Boundary: ObsidianDrawioPlugin_
 
 - [ ] 7. 統合テストと検証
-- [ ] 7.1 3 形式のエンドツーエンド往復を検証する
+- [x] 7.1 3 形式のエンドツーエンド往復を検証する
   - 各形式のサンプルファイル（`.drawio`・`.drawio.svg`・`.drawio.png`）を Vault に配置してクリックし、drawio ビューが開いて図形が表示されることを確認する
   - 図形を編集して保存し、ファイルを再オープンしたときに変更が維持されていることを確認する
   - 保存後の `.drawio.svg` / `.drawio.png` を Markdown の `![[...]]` 埋め込みで表示できることを確認する
