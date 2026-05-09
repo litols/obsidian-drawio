@@ -36,7 +36,7 @@
   - _Requirements: 2.1, 2.2, 2.7, 3.1, 3.2_
   - _Boundary: DrawioXml_
 
-- [ ] 3.2 (P) `.drawio.svg` SVG reader を実装する
+- [x] 3.2 (P) `.drawio.svg` SVG reader を実装する
   - `src/lib/drawio-formats/drawio-svg.ts` を作成する
   - `readDrawioSvg(svgContent: string): string` を実装する: DOMParser で解析し、`<svg content="...">` 属性を `atob` して XML を取得; なければ `svg.querySelector('mxfile')?.textContent` を試みる; 両方失敗時は `'<mxGraphModel/>'` を返して `console.warn` を出力する
   - `content` 属性あり・`<mxfile>` 子要素あり・両方なしの 3 パターンで正しい XML が返ることを確認する
@@ -51,7 +51,7 @@
   - _Requirements: 2.5, 2.7, 5.3, 6.1, 6.2, 6.3_
   - _Boundary: DrawioPng_
 
-- [ ] 3.5 (P) `.drawio.svg` writer (writeDrawioSvgWithMxfile) を実装する
+- [x] 3.5 (P) `.drawio.svg` writer (writeDrawioSvgWithMxfile) を実装する
   - `src/lib/drawio-formats/drawio-svg.ts` に追加する
   - `writeDrawioSvgWithMxfile(existingSvg: string, newMxfileXml: string): string` を実装する: DOMParser で SVG を解析 → `content` 属性があれば `btoa(newMxfileXml)` で更新; なければ既存 `<mxfile>` 子要素を置換; どちらも無ければ `<svg>` 直下に新規 `<mxfile>` を追加 → `XMLSerializer` で出力。`<style>`, `<defs>`, 他の attribute は破壊しないこと
   - 既存 `<style>` を含む SVG に対し、style 要素が保持されたまま mxfile だけ置換されることを確認する
