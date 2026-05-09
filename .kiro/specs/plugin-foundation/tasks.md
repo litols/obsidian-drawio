@@ -38,7 +38,7 @@
   - _Requirements: 7.6, 7.7_
   - _Boundary: Lint/Format 設定_
 
-- [ ] 1.5 Vite build.lib 構成への全面書き換え
+- [x] 1.5 Vite build.lib 構成への全面書き換え
   - `vite.config.ts` を `build.lib` モードで再構成する
     - `lib.entry: 'src/main.ts'`、`lib.formats: ['cjs']`、`lib.fileName: () => 'main.js'`
     - `rollupOptions.external`: `['obsidian', 'electron', ...builtinModules, ...builtinModules.map((m) => 'node:' + m), /^@codemirror\//, /^@lezer\//]` (`import { builtinModules } from 'node:module'`)
