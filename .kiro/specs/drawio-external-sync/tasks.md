@@ -3,7 +3,7 @@
 ## タスク一覧
 
 - [ ] 1. 設定スキーマ追加 (ExternalSyncSettings)
-- [ ] 1.1 `ExternalSyncSettings` 型と `DEFAULT_EXTERNAL_SYNC_SETTINGS` を `src/lib/settings.ts` に追加する
+- [x] 1.1 `ExternalSyncSettings` 型と `DEFAULT_EXTERNAL_SYNC_SETTINGS` を `src/lib/settings.ts` に追加する
   - `ExternalSyncSettings` interface を定義: `autoReloadWhenClean`, `notifyOnExternalChange`, `notificationLevel`, `echoSuppressionMs`, `dedupDebounceMs`
   - `DrawioSettings` (drawio-settings-and-config 所有) に `externalSync: ExternalSyncSettings` フィールドを追加するための拡張を行う (本 spec が drawio-settings-and-config への additive coordination として実施)
   - `migrateSettings` (drawio-settings-and-config が定義) に **settingsVersion 1 → 2** の分岐を追加する: version === 1 (または `drawio.externalSync` 未定義) のときに `DEFAULT_EXTERNAL_SYNC_SETTINGS` を `drawio.externalSync` に補完し、`settingsVersion = 2` に bump する。1 → 2 以前の migration ロジック (legacy トップレベル吸収など) は drawio-settings-and-config 既存実装を再利用し書き換えない (chain pattern)
@@ -18,14 +18,14 @@
   - _Boundary: SettingsModule_
 
 - [ ] 2. ExternalWatcher 実装
-- [ ] 2.1 `src/lib/external-watcher.ts` に `ExternalChangeEvent` 型と `ExternalWatcher` インターフェースを定義する (P)
+- [x] 2.1 `src/lib/external-watcher.ts` に `ExternalChangeEvent` 型と `ExternalWatcher` インターフェースを定義する (P)
   - `ExternalChangeEvent { file: TFile, mtime: number, sourceHint?: string }` を export する
   - `ExternalWatcher { registerSelfWrite(path): void; dispose(): void }` インターフェースを export する
   - 型定義のみのファイルとしてビルドエラーがないことを確認する
   - _Requirements: 2.1, 2.3_
   - _Boundary: ExternalWatcher_
 
-- [ ] 2.2 `createExternalWatcher` 関数を実装し Vault イベント購読・drawio 拡張子フィルタリング・event bus emit を行う
+- [x] 2.2 `createExternalWatcher` 関数を実装し Vault イベント購読・drawio 拡張子フィルタリング・event bus emit を行う
   - `vault.on('modify', ...)` / `vault.on('rename', ...)` / `vault.on('delete', ...)` を購読する
   - drawio 拡張子 (`.drawio` / `.drawio.svg` / `.drawio.png`) のみ処理する
   - modify イベント時: echo 抑制チェック (`recentSelfWrites` Map) を行う
@@ -37,7 +37,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 2.1, 7.3, 11.1, 11.3_
   - _Boundary: ExternalWatcher_
 
-- [ ] 2.3 echo 抑制 (`registerSelfWrite`) と dedup debounce を実装する
+- [x] 2.3 echo 抑制 (`registerSelfWrite`) と dedup debounce を実装する
   - `registerSelfWrite(path)` で `recentSelfWrites.set(path, Date.now())` し `echoSuppressionMs` 後に自動削除する
   - `modify` イベント時に `Date.now() - recentSelfWrites.get(path) < echoSuppressionMs` で判定して無視する
   - dedup: 同一 path の debounce timer を `pendingDebounce` Map で管理し `clearTimeout` + 新 `setTimeout` パターンを実装する
@@ -47,7 +47,7 @@
   - _Requirements: 1.3, 1.4, 1.5, 1.6_
   - _Boundary: ExternalWatcher_
 
-- [ ] 2.4 3 段階通知 (statusbar / Notice) を ExternalWatcher に実装する
+- [x] 2.4 3 段階通知 (statusbar / Notice) を ExternalWatcher に実装する
   - `addStatusBarItem()` で statusBarItem を生成し、`notificationLevel` が `'statusbar'` 以上のときに "Diagram updated externally" を表示する
   - `notifyOnExternalChange` が `false` の場合は通知を一切発火しない
   - `notificationLevel` が `'notice'` 以上のときに `new Notice(message)` を呼ぶ
@@ -58,7 +58,7 @@
   - _Boundary: ExternalWatcher_
 
 - [ ] 3. DrawioView への外部変更統合
-- [ ] 3.1 `src/views/DrawioView.ts` に `drawio:external-change` 購読と自動リロードロジックを追加する
+- [x] 3.1 `src/views/DrawioView.ts` に `drawio:external-change` 購読と自動リロードロジックを追加する
   - `onLoadFile()` 内で `plugin.events.on('drawio:external-change', this.onExternalChange)` を購読する (EventRef を保持)
   - `onExternalChange` で `event.file.path === this.file?.path` を確認してから処理する
   - `isDirty === false` かつ `autoReloadWhenClean === true` の場合: `await this.reload(this.file)` を呼ぶ (drawio-file-io が提供する `DrawioView.reload(file, options?)` を利用; 内部で `readDrawioFile` → `bridge.load` → `currentFormat` / `currentCompressed` / `_isDirty` 更新まで完結する。`bridge.load` を直接呼ぶと内部状態が更新されないため禁止)
@@ -68,7 +68,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 11.2_
   - _Boundary: DrawioView_
 
-- [ ] 3.2 rename / delete イベント時の DrawioView 対応を実装する
+- [x] 3.2 rename / delete イベント時の DrawioView 対応を実装する
   - rename イベント受信時: `this.file` を新 TFile に更新する
   - delete イベント受信時: `this.leaf.detach()` で View を閉じ `new Notice('ダイアグラムが削除されました')` を発火する
   - rename/delete 判定は `ExternalChangeEvent` に付加した `type: 'rename' | 'delete' | 'modify'` フィールドで行う

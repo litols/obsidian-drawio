@@ -25,6 +25,24 @@ export type DrawioLanguage =
   | "it";
 export type DrawioSaveFormat = "keep" | "drawio";
 
+export type ExternalSyncNotificationLevel = "silent" | "statusbar" | "notice" | "banner";
+
+export interface ExternalSyncSettings {
+  autoReloadWhenClean: boolean;
+  notifyOnExternalChange: boolean;
+  notificationLevel: ExternalSyncNotificationLevel;
+  echoSuppressionMs: number;
+  dedupDebounceMs: number;
+}
+
+export const DEFAULT_EXTERNAL_SYNC_SETTINGS: ExternalSyncSettings = {
+  autoReloadWhenClean: true,
+  notifyOnExternalChange: true,
+  notificationLevel: "banner",
+  echoSuppressionMs: 300,
+  dedupDebounceMs: 100,
+};
+
 export interface DrawioSettings {
   settingsVersion: number;
   theme: DrawioTheme;
@@ -38,6 +56,7 @@ export interface DrawioSettings {
   ribbonEnabled: boolean;
   openDrawioSvg: boolean;
   openDrawioPng: boolean;
+  externalSync: ExternalSyncSettings;
 }
 
 export interface DrawioPluginSettings {
@@ -45,7 +64,7 @@ export interface DrawioPluginSettings {
 }
 
 export const DEFAULT_DRAWIO_SETTINGS: DrawioSettings = {
-  settingsVersion: 1,
+  settingsVersion: 2,
   theme: "auto",
   defaultLibraries: ["general"],
   customLibraries: [],
@@ -57,6 +76,7 @@ export const DEFAULT_DRAWIO_SETTINGS: DrawioSettings = {
   ribbonEnabled: true,
   openDrawioSvg: true,
   openDrawioPng: true,
+  externalSync: { ...DEFAULT_EXTERNAL_SYNC_SETTINGS },
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
@@ -133,8 +153,46 @@ export function migrateSettings(raw: unknown): DrawioSettings {
     ? (drawioInput.customLibraries as string[]).filter((v) => typeof v === "string")
     : DEFAULT_DRAWIO_SETTINGS.customLibraries;
 
+  const rawVersion =
+    typeof drawioInput.settingsVersion === "number" ? drawioInput.settingsVersion : 1;
+
+  // v1 → v2: externalSync 補完
+  const externalSyncInput =
+    drawioInput.externalSync != null && typeof drawioInput.externalSync === "object"
+      ? (drawioInput.externalSync as Record<string, unknown>)
+      : {};
+
+  const externalSync: ExternalSyncSettings =
+    rawVersion < 2 || drawioInput.externalSync == null
+      ? { ...DEFAULT_EXTERNAL_SYNC_SETTINGS }
+      : {
+          autoReloadWhenClean: resolveBoolean(
+            externalSyncInput.autoReloadWhenClean,
+            undefined,
+            DEFAULT_EXTERNAL_SYNC_SETTINGS.autoReloadWhenClean,
+          ),
+          notifyOnExternalChange: resolveBoolean(
+            externalSyncInput.notifyOnExternalChange,
+            undefined,
+            DEFAULT_EXTERNAL_SYNC_SETTINGS.notifyOnExternalChange,
+          ),
+          notificationLevel: (
+            ["silent", "statusbar", "notice", "banner"] as ExternalSyncNotificationLevel[]
+          ).includes(externalSyncInput.notificationLevel as ExternalSyncNotificationLevel)
+            ? (externalSyncInput.notificationLevel as ExternalSyncNotificationLevel)
+            : DEFAULT_EXTERNAL_SYNC_SETTINGS.notificationLevel,
+          echoSuppressionMs:
+            typeof externalSyncInput.echoSuppressionMs === "number"
+              ? externalSyncInput.echoSuppressionMs
+              : DEFAULT_EXTERNAL_SYNC_SETTINGS.echoSuppressionMs,
+          dedupDebounceMs:
+            typeof externalSyncInput.dedupDebounceMs === "number"
+              ? externalSyncInput.dedupDebounceMs
+              : DEFAULT_EXTERNAL_SYNC_SETTINGS.dedupDebounceMs,
+        };
+
   return {
-    settingsVersion: 1,
+    settingsVersion: 2,
     theme,
     defaultLibraries,
     customLibraries,
@@ -162,6 +220,7 @@ export function migrateSettings(raw: unknown): DrawioSettings {
       legacyOpenPng,
       DEFAULT_DRAWIO_SETTINGS.openDrawioPng,
     ),
+    externalSync,
   };
 }
 

@@ -1,8 +1,9 @@
-import { FileView, Notice, type TFile, type WorkspaceLeaf } from "obsidian";
+import { FileView, Notice, type EventRef, type TFile, type WorkspaceLeaf } from "obsidian";
 import { readDrawioFile, writeDrawioFile, type DrawioFormat } from "../lib/drawio-formats";
 import { createDrawioBridge, type DrawioBridge } from "../lib/drawio-bridge";
 import { applyLibraries } from "../lib/library-bridge";
 import { resolveDrawioLanguage } from "../lib/language-bridge";
+import type { ExternalChangeEvent } from "../lib/external-watcher";
 import type ObsidianDrawioPlugin from "../main";
 
 export const DRAWIO_VIEW_TYPE = "drawio";
@@ -21,6 +22,7 @@ export class DrawioView extends FileView {
   protected currentCompressed = false;
   private _isDirty = false;
   private _lastXml: string | null = null;
+  private externalChangeRef: EventRef | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianDrawioPlugin) {
     super(leaf);
@@ -65,6 +67,7 @@ export class DrawioView extends FileView {
           compressed: this.currentCompressed,
         });
         this._isDirty = false;
+        this.plugin.externalWatcher?.registerSelfWrite(file.path);
       } catch (error) {
         console.error("[drawio-view] save failed:", error);
         new Notice(`drawio: failed to save ${file.name}`);
@@ -96,6 +99,7 @@ export class DrawioView extends FileView {
           "drawio-svg",
         );
         this._isDirty = false;
+        this.plugin.externalWatcher?.registerSelfWrite(file.path);
       } else if (format === "xmlpng" && this.currentFormat === "drawio-png") {
         const base64 = data.startsWith("data:") ? data.slice(data.indexOf(",") + 1) : data;
         const binary = atob(base64);
@@ -108,6 +112,7 @@ export class DrawioView extends FileView {
           "drawio-png",
         );
         this._isDirty = false;
+        this.plugin.externalWatcher?.registerSelfWrite(file.path);
       } else {
         console.warn(
           `[drawio-view] unexpected export format=${format} for currentFormat=${this.currentFormat}`,
@@ -159,9 +164,62 @@ export class DrawioView extends FileView {
     if (this.bridge && this.plugin.settings.drawio) {
       void applyLibraries(this.bridge, this.plugin.settings.drawio, this.app.vault);
     }
+
+    // 重複購読を防ぐため既存 ref を先に解除
+    if (this.externalChangeRef) {
+      this.plugin.events.offref(this.externalChangeRef);
+      this.externalChangeRef = null;
+    }
+    this.externalChangeRef = this.plugin.events.on(
+      "drawio:external-change",
+      (ev: unknown) => void this.onExternalChange(ev as ExternalChangeEvent),
+    );
+  }
+
+  private async onExternalChange(ev: ExternalChangeEvent): Promise<void> {
+    if (ev.type === "rename" && ev.oldPath === this.file?.path) {
+      this.file = ev.file;
+      return;
+    }
+
+    if (!this.file || ev.file.path !== this.file.path) return;
+
+    if (ev.type === "delete") {
+      new Notice("ダイアグラムが削除されました");
+      this.leaf.detach();
+      return;
+    }
+
+    if (ev.type === "modify") {
+      const settings = this.plugin.settings.drawio?.externalSync;
+      if (!settings) return;
+
+      if (!this.isDirty && settings.autoReloadWhenClean) {
+        try {
+          await this.reload(this.file);
+        } catch (err) {
+          if (err instanceof DrawioDirtyReloadError) {
+            // race で dirty になった: banner mount は task 4.2 で実装
+            console.warn(
+              "[drawio] reload failed (became dirty during race); falling back to banner",
+            );
+          } else {
+            console.error("[drawio] reload failed:", err);
+            new Notice("ダイアグラムの読み込みに失敗しました");
+          }
+        }
+      } else if (this.isDirty) {
+        // dirty: banner は task 4.2 で実装
+        console.debug("[drawio] external change while dirty; banner not yet implemented");
+      }
+    }
   }
 
   async onUnloadFile(_file: TFile): Promise<void> {
+    if (this.externalChangeRef) {
+      this.plugin.events.offref(this.externalChangeRef);
+      this.externalChangeRef = null;
+    }
     if (this.bridge && this.plugin.themeBridge) {
       this.plugin.themeBridge.unregisterBridge(this.bridge);
     }
@@ -174,6 +232,10 @@ export class DrawioView extends FileView {
   }
 
   async onClose(): Promise<void> {
+    if (this.externalChangeRef) {
+      this.plugin.events.offref(this.externalChangeRef);
+      this.externalChangeRef = null;
+    }
     this.bridge?.dispose();
     this.bridge = null;
     this._isDirty = false;

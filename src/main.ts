@@ -1,4 +1,4 @@
-import { Notice, Plugin, type TFile } from "obsidian";
+import { Events, Notice, Plugin, type TFile } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   migrateSettings,
@@ -12,11 +12,14 @@ import { registerPerDiagramConfigLifecycle } from "./lib/per-diagram-config";
 import { createThemeBridge, type ThemeBridge } from "./lib/theme-bridge";
 import { DrawioSettingTab } from "./views/SettingsTab";
 import { DiagramSettingsModal } from "./views/DiagramSettingsModal";
+import { createExternalWatcher, type ExternalWatcher } from "./lib/external-watcher";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
   reactMountManager!: ReactMountManager;
   themeBridge!: ThemeBridge;
+  events: Events = new Events();
+  externalWatcher: ExternalWatcher | null = null;
   private disposers: Array<() => void> = [];
 
   async onload(): Promise<void> {
@@ -28,6 +31,12 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
       this.reactMountManager = createReactMountManager();
       this.themeBridge = createThemeBridge(this, () => this.settings.drawio!);
+
+      this.externalWatcher = createExternalWatcher(
+        this,
+        this.app.vault,
+        () => this.settings.drawio!.externalSync,
+      );
 
       this.addSettingTab(new DrawioSettingTab(this.app, this));
       registerPerDiagramConfigLifecycle(this);
@@ -78,6 +87,27 @@ export default class ObsidianDrawioPlugin extends Plugin {
         },
       });
 
+      this.addCommand({
+        id: "drawio-refresh-from-disk",
+        name: "Refresh diagram from disk",
+        callback: () => {
+          const leaf = this.app.workspace.getMostRecentLeaf();
+          if (!leaf || leaf.view?.getViewType() !== DRAWIO_VIEW_TYPE) {
+            new Notice("draw.io ファイルを開いた状態で実行してください");
+            return;
+          }
+          const view = leaf.view as DrawioView;
+          if (!view.file) {
+            new Notice("draw.io ファイルが開かれていません");
+            return;
+          }
+          void view.reload(view.file, { force: true }).catch((err) => {
+            console.error("[drawio] refresh-from-disk failed:", err);
+            new Notice("ダイアグラムの再読み込みに失敗しました");
+          });
+        },
+      });
+
       registerDemoCommand(this);
     } catch (error) {
       console.error("[obsidian-drawio] onload failed:", error);
@@ -85,6 +115,8 @@ export default class ObsidianDrawioPlugin extends Plugin {
   }
 
   onunload(): void {
+    this.externalWatcher?.dispose();
+    this.externalWatcher = null;
     this.themeBridge?.dispose();
     for (let i = this.disposers.length - 1; i >= 0; i--) {
       try {
