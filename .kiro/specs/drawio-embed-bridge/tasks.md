@@ -134,7 +134,7 @@
   - _Boundary: DrawioBridge, DemoCommand_
   - _Depends: 5.2_
 
-- [ ] 6.2 ライセンスファイルの同梱と draw.io 疎通の最終確認を行う
+- [x] 6.2 ライセンスファイルの同梱と draw.io 疎通の最終確認を行う
   - `pnpm build` 後に `dist/drawio/LICENSE` と `dist/drawio/NOTICE` が存在することを確認する
   - Obsidian Desktop で実際にデモコマンドを実行し draw.io 編集 UI が表示されることを手動確認する
   - 固定 XML が draw.io に正しく渡され図形が描画された状態で表示されることを確認する
@@ -144,7 +144,7 @@
   - _Boundary: ViteConfig, DrawioBridge_
   - _Depends: 6.1_
 
-- [ ] 6.3 README に Apache-2.0 表記と submodule 初期化手順を追加する
+- [x] 6.3 README に Apache-2.0 表記と submodule 初期化手順を追加する
   - リポジトリ root の README.md に以下を追記する:
     - "Bundles draw.io ([Apache-2.0](https://github.com/jgraph/drawio/blob/master/LICENSE))" の表記
     - 固定している drawio タグ (例: `v24.7.17`) と更新ポリシー

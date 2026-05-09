@@ -1,73 +1,83 @@
-# React + TypeScript + Vite
+# obsidian-drawio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Obsidian desktop plugin for viewing and editing draw.io diagrams
+(`.drawio`, `.drawio.svg`, `.drawio.png`) directly inside the Obsidian editor.
 
-Currently, two official plugins are available:
+> **Status**: under active development. Spec-driven via the kiro workflow
+> in `.kiro/specs/`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features (planned / in progress)
 
-## React Compiler
+- Open and edit `.drawio` / `.drawio.svg` / `.drawio.png` files in an
+  embedded draw.io editor (drawio-file-io spec)
+- Plugin settings: theme follow, default libraries, save format, etc.
+  (drawio-settings-and-config spec)
+- External-change detection with auto-reload and conflict resolution
+  for AI-agent-driven workflows (drawio-external-sync spec)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Bundles draw.io
 
-## Expanding the ESLint configuration
+This plugin bundles the upstream [draw.io](https://github.com/jgraph/drawio)
+webapp ([Apache-2.0](https://github.com/jgraph/drawio/blob/master/LICENSE))
+as a git submodule pinned to **`v29.7.12`** (commit
+`c9904435fd1a6795f6cad5c3908ec89d9afb8fb1`).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The bundled `LICENSE` is shipped at `dist/drawio/LICENSE`. Upstream does
+not include a `NOTICE` file at this tag, so none is bundled.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Submodule initialization
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+When cloning fresh:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git clone --recurse-submodules <this-repo>
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+If you already cloned without `--recurse-submodules`:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git submodule update --init --recursive
 ```
+
+The submodule is configured with `shallow = true` to keep clone size small.
+
+### Updating the bundled draw.io
+
+Tag updates are **manual** (not done automatically by `--remote`):
+
+```bash
+cd vendor/drawio
+git fetch --tags
+git checkout <new-tag>
+cd ../..
+git add vendor/drawio
+```
+
+Bump the tag in `.kiro/specs/drawio-embed-bridge/research.md` (Vendor Submodule section)
+and this README at the same time.
+
+## Development
+
+```bash
+pnpm install                  # install deps; expects submodules already initialized
+pnpm dev                      # vite build --watch
+pnpm build                    # tsc -b && vite build
+pnpm lint                     # oxlint
+pnpm format                   # oxfmt
+pnpm format:check             # oxfmt --check
+```
+
+Output goes to `dist/` (`main.js` + `manifest.json` + `styles.css` +
+`drawio/` static webapp). To install into a Vault:
+
+```bash
+ln -s "$(pwd)/dist" "<your-vault>/.obsidian/plugins/obsidian-drawio"
+```
+
+Then enable "Drawio" in Obsidian → Settings → Community plugins.
+
+## License
+
+This plugin's own source is under the project license (TBD). The bundled
+draw.io webapp under `vendor/drawio/` retains its Apache-2.0 license; see
+`dist/drawio/LICENSE` for the redistributed copy.
