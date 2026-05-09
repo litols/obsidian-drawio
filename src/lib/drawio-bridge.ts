@@ -37,6 +37,7 @@ export function createDrawioBridge(app: App): DrawioBridge {
   let iframe: HTMLIFrameElement | null = null;
   let messageHandler: ((event: MessageEvent) => void) | null = null;
   let callbacks: DrawioBridgeCallbacks = {};
+  let initialXml = "";
   let mounted = false;
 
   function disposeInternal(): void {
@@ -46,6 +47,7 @@ export function createDrawioBridge(app: App): DrawioBridge {
       messageHandler = null;
     }
     callbacks = {};
+    initialXml = "";
     if (iframe) {
       iframe.src = "about:blank";
       iframe.remove();
@@ -63,7 +65,31 @@ export function createDrawioBridge(app: App): DrawioBridge {
       console.warn("[DrawioBridge] Failed to parse message:", event.data);
       return;
     }
-    console.debug("[DrawioBridge] received:", msg.event, "callbacks:", callbacks);
+    switch (msg.event) {
+      case "init":
+        iframe.contentWindow?.postMessage(JSON.stringify({ action: "load", xml: initialXml }), "*");
+        break;
+      case "load":
+        break;
+      case "save":
+        callbacks.onSave?.(msg.xml, msg.exit);
+        break;
+      case "autosave":
+        callbacks.onAutosave?.(msg.xml);
+        break;
+      case "export":
+        callbacks.onExport?.(msg.data, msg.format);
+        break;
+      case "exit":
+        callbacks.onExit?.();
+        break;
+      case "dialog":
+        console.warn("[DrawioBridge] dialog event (unhandled):", msg);
+        break;
+      case "prompt":
+        console.warn("[DrawioBridge] prompt event (unhandled):", msg);
+        break;
+    }
   }
 
   return {
@@ -93,6 +119,7 @@ export function createDrawioBridge(app: App): DrawioBridge {
       iframe.style.border = "none";
 
       callbacks = opts?.callbacks ?? {};
+      initialXml = opts?.initialXml ?? "";
 
       messageHandler = handleMessage;
       window.addEventListener("message", messageHandler);

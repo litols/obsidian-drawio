@@ -62,7 +62,7 @@
   - _Boundary: DrawioBridge_
   - _Depends: 2.1, 3.1_
 
-- [ ] 4.2 (P) DrawioBridge の inbound メッセージハンドリングを実装する
+- [x] 4.2 (P) DrawioBridge の inbound メッセージハンドリングを実装する
   - `event.data` の `JSON.parse` を try/catch で囲み、失敗時は warn ログを出して return する
   - `init` イベント受信時に `{action: 'load', xml: opts.initialXml ?? ''}` を drawio へ返信する
   - `save` / `autosave` イベント受信時に対応するコールバック (`onSave` / `onAutosave`) を呼び出す
