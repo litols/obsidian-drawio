@@ -106,3 +106,10 @@
 - drawio-desktop IPC 実装 — 同アーキテクチャの参考実装
 - Obsidian Plugin API (`app.vault.adapter.getResourcePath`) — `app://` URL 取得方法
 - vite-plugin-static-copy ドキュメント — `targets` および `command` オプション
+
+## Vendor Submodule
+
+- **Selected tag**: `v29.7.12` (commit `c9904435fd1a6795f6cad5c3908ec89d9afb8fb1`)
+- **Rationale**: `v30.0.0` はメジャーバージョンのため安定性不明。最新マイナー安定版 `v29.7.12` を採用
+- **Path**: `vendor/drawio`
+- **shallow = true**: `.gitmodules` に設定済み (clone コスト削減)

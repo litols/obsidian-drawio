@@ -1,0 +1,4 @@
+[submodule "vendor/drawio"]
+	path = vendor/drawio
+	url = https://github.com/jgraph/drawio.git
+	shallow = true
