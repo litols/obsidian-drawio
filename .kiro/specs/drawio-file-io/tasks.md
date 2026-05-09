@@ -58,7 +58,7 @@
   - _Requirements: 5.3, 6.1, 6.4_
   - _Boundary: DrawioSvg_
 
-- [ ] 3.4 Format index の公開 API を実装する
+- [x] 3.4 Format index の公開 API を実装する
   - `src/lib/drawio-formats/index.ts` を作成する
   - `DrawioFormat`, `ReadDrawioResult`, `WriteDrawioOptions`, `WriteDrawioPayload` (discriminated union: `{kind:'xml',xml}` | `{kind:'svg',exportedSvg}` | `{kind:'png',exportedPng:ArrayBuffer}`) 型を定義する
   - `readDrawioFile(file: TFile, vault: Vault): Promise<ReadDrawioResult>` を実装する: ファイル名末尾で `'.drawio.svg'` / `'.drawio.png'` / `'.drawio'` を判定し対応 reader を呼ぶ; 失敗時は fallback `{ xml: '<mxGraphModel/>', format: 'drawio', compressed: false }` を返して `console.warn` を出力する
