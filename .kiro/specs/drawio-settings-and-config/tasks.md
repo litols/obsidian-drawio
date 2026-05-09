@@ -76,7 +76,7 @@
   - _Depends: 3.1_
 
 - [ ] 4. DrawioSettingTab (グローバル設定 UI) の実装
-- [ ] 4.1 DrawioSettingTab クラスと React ルートの骨格を実装する
+- [x] 4.1 DrawioSettingTab クラスと React ルートの骨格を実装する
   - `src/views/SettingsTab.tsx` を新規作成する
   - `DrawioSettingTab extends PluginSettingTab` を定義し、`display()` で `mountManager.mount`、`hide()` で `mountManager.unmount` を呼ぶ
   - `SettingsApp` React コンポーネントの骨格 (空の `<div>`) を実装する
@@ -86,7 +86,7 @@
   - _Boundary: DrawioSettingTab_
   - _Depends: 1.1_
 
-- [ ] 4.2 テーマ・保存形式・圧縮・math・grid・ribbon 設定の UI を実装する (P)
+- [x] 4.2 テーマ・保存形式・圧縮・math・grid・ribbon 設定の UI を実装する (P)
   - `SettingsApp` に theme ドロップダウン (auto/light/dark/kennedy/min/atlas) を実装する
   - `defaultSaveFormat` ドロップダウン (keep/drawio) を実装する
   - `compression`・`math`・`grid`・`ribbonEnabled` トグルを実装する
@@ -95,7 +95,7 @@
   - _Boundary: DrawioSettingTab_
   - _Depends: 4.1_
 
-- [ ] 4.3 libraries 設定 UI (デフォルト・カスタム) を実装する (P)
+- [x] 4.3 libraries 設定 UI (デフォルト・カスタム) を実装する (P)
   - defaultLibraries チェックボックス群 (general, basic, arrows3, flowchart, uml, er, bpmn, mockup, network, lean_mapping) を実装する
   - customLibraries の追加/削除リスト UI を実装する (Vault 相対パスのみ受け付ける)
   - 入力検証: `http://`, `https://`, `file://`, `app://` で始まる文字列、または `://` を含む文字列を入力時に拒否しインラインエラーメッセージを表示する; 絶対パス (`/...`, Windows の `C:\\...`) も拒否する
@@ -104,7 +104,7 @@
   - _Boundary: DrawioSettingTab_
   - _Depends: 4.1_
 
-- [ ] 4.3.1 LibraryBridge: customLibraries (Vault 相対パス) を `DrawioBridge.setLibraries` の引数形式に変換するヘルパーを実装する
+- [x] 4.3.1 LibraryBridge: customLibraries (Vault 相対パス) を `DrawioBridge.setLibraries` の引数形式に変換するヘルパーを実装する
   - `src/lib/library-bridge.ts` を新規作成する (本 spec が責務を持つ; drawio-file-io には移譲しない理由は UI と直結しているため)
   - `loadCustomLibraries(vault: Vault, paths: string[]): Promise<ReadonlyArray<{ title: string; entries: unknown[] }>>` を実装する: 各パスを `vault.adapter.read` で読み込み、ファイル拡張子に応じて drawio library XML (`<mxlibrary>...</mxlibrary>` の JSON 配列) としてパースし、`{ title: ファイル basename, entries: 配列 }` を返す。読み込み/パース失敗時は当該パスを skip し `console.warn` でログ
   - `applyLibraries(bridge: DrawioBridge, settings: DrawioSettings, vault: Vault): Promise<void>` を実装する: `defaultLibraries` (settings 名) はそのまま `setLibraries` の引数に追加 (entries は drawio embed 側がデフォルト解決)、`customLibraries` (Vault 相対パス) は `loadCustomLibraries` で entries 解決後に追加し、最終的に `bridge.setLibraries([...defaults, ...customs])` を 1 回呼ぶ
@@ -114,7 +114,7 @@
   - _Boundary: LibraryBridge, SettingsModule_
   - _Depends: 4.3, 1.1_
 
-- [ ] 4.4 言語設定 UI を実装する (P)
+- [x] 4.4 言語設定 UI を実装する (P)
   - `language` ドロップダウン (auto + 対応言語コード一覧) を実装する
   - `language === 'auto'` 時に `moment.locale()` から drawio 言語コードを解決するヘルパー関数を実装する (先頭 2 文字マッチ + en フォールバック)
   - ドロップダウン変更後に `saveSettings` が呼ばれること、`auto` 設定時に DrawioView の iframe URL に正しい `lang` パラメータが渡されることを確認できること
@@ -122,7 +122,7 @@
   - _Boundary: DrawioSettingTab, SettingsModule_
   - _Depends: 4.1_
 
-- [ ] 4.5 external-sync 設定セクションの予約 UI を実装する
+- [x] 4.5 external-sync 設定セクションの予約 UI を実装する
   - `SettingsApp` の末尾に `<section data-spec="external-sync">` セクションを追加する
   - セクションヘッダー "外部変更の同期設定 (external-sync spec により追加)" とプレースホルダーテキストを表示する
   - `drawio-external-sync` spec が設定コンポーネントを注入できる拡張ポイントが確認できること

@@ -1,6 +1,8 @@
 import { FileView, Notice, type TFile, type WorkspaceLeaf } from "obsidian";
 import { readDrawioFile, writeDrawioFile, type DrawioFormat } from "../lib/drawio-formats";
 import { createDrawioBridge, type DrawioBridge } from "../lib/drawio-bridge";
+import { applyLibraries } from "../lib/library-bridge";
+import { resolveDrawioLanguage } from "../lib/language-bridge";
 import type ObsidianDrawioPlugin from "../main";
 
 export const DRAWIO_VIEW_TYPE = "drawio";
@@ -130,6 +132,7 @@ export class DrawioView extends FileView {
     this.bridge = createDrawioBridge(this.app);
     this.bridge.mount(container, {
       initialXml: result.xml,
+      lang: resolveDrawioLanguage(this.plugin.settings.drawio?.language ?? "auto"),
       callbacks: {
         onAutosave: (xml) => {
           this._lastXml = xml;
@@ -152,6 +155,9 @@ export class DrawioView extends FileView {
     if (this.bridge && this.plugin.themeBridge) {
       this.plugin.themeBridge.registerBridge(this.bridge);
       this.plugin.themeBridge.applyTheme(this.bridge);
+    }
+    if (this.bridge && this.plugin.settings.drawio) {
+      void applyLibraries(this.bridge, this.plugin.settings.drawio, this.app.vault);
     }
   }
 

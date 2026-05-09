@@ -10,6 +10,7 @@ import { registerDemoCommand } from "./commands/demo-command";
 import { DrawioView, DRAWIO_VIEW_TYPE } from "./views/DrawioView";
 import { registerPerDiagramConfigLifecycle } from "./lib/per-diagram-config";
 import { createThemeBridge, type ThemeBridge } from "./lib/theme-bridge";
+import { DrawioSettingTab } from "./views/SettingsTab";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
@@ -27,6 +28,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
       this.reactMountManager = createReactMountManager();
       this.themeBridge = createThemeBridge(this, () => this.settings.drawio!);
 
+      this.addSettingTab(new DrawioSettingTab(this.app, this));
       registerPerDiagramConfigLifecycle(this);
       this.registerView(DRAWIO_VIEW_TYPE, (leaf) => new DrawioView(leaf, this));
       this.registerExtensions(["drawio"], DRAWIO_VIEW_TYPE);
