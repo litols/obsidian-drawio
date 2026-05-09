@@ -66,7 +66,7 @@
   - _Boundary: StylesCss_
 
 - [ ] 3. 横断 utility 層 (settings / theme / react-mount)
-- [ ] 3.1 (P) PluginSettings 型と DEFAULT_SETTINGS の定義
+- [x] 3.1 (P) PluginSettings 型と DEFAULT_SETTINGS の定義
   - `src/lib/settings.ts` を作成する
   - `export interface PluginSettings {}` を定義 (空 interface。後続 spec が宣言マージで拡張)
   - `export const DEFAULT_SETTINGS: PluginSettings = {}` を定義
