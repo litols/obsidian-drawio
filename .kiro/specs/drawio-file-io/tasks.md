@@ -19,7 +19,7 @@
   - _Boundary: package.json_
 
 - [ ] 2. PluginSettings への設定フィールド追加 (legacy トップレベル; settings spec が drawio 名前空間に吸収)
-- [ ] 2.1 設定型と初期値を追加する
+- [x] 2.1 設定型と初期値を追加する
   - `src/lib/settings.ts` の `PluginSettings` に **legacy トップレベル**として `openDrawioSvg: boolean`, `openDrawioPng: boolean`, `preserveCompression: boolean` を追加する
   - `DEFAULT_SETTINGS` を `{ openDrawioSvg: true, openDrawioPng: true, preserveCompression: true }` で更新する
   - 注: `drawio-settings-and-config` spec の `migrateSettings` が legacy フィールドを `drawio.openDrawioSvg` / `drawio.openDrawioPng` / `drawio.compression` 名前空間に移動させる責務を持つ。本 spec の DrawioView / main.ts は読み取り側で `settings.drawio.openDrawioSvg` / `settings.drawio.openDrawioPng` / `settings.drawio.compression` を参照すること (settings spec 適用後は legacy トップレベルは raw data から消去される)
