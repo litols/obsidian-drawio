@@ -1,0 +1,156 @@
+# 実装計画: drawio-embed-bridge
+
+- [ ] 1. vendor/drawio submodule の取り込みと配布パイプラインのセットアップ
+- [ ] 1.1 vendor/drawio git submodule を追加し特定 release タグに固定する
+  - `git submodule add https://github.com/jgraph/drawio.git vendor/drawio` を実行する
+  - `vendor/drawio` 内で `git tag --sort=-creatordate | head -5` を確認し、最新の安定 release タグ (例: `v24.7.17`) を選定する。選定したタグ値は `.kiro/specs/drawio-embed-bridge/research.md` の「References」末尾と README に明記する
+  - `git -C vendor/drawio checkout <選定タグ>` でコミットを固定する
+  - `.gitmodules` に `url`、`path` を記録し、`shallow = true` を追加して clone コストを下げる
+  - `git add .gitmodules vendor/drawio` で submodule エントリをステージングする
+  - 完了条件: `vendor/drawio/src/main/webapp/index.html` が存在し、`git submodule status` が固定 SHA を表示し、`.gitmodules` に `shallow = true` が含まれる
+  - _Requirements: 1.1, 1.3, 1.6, 7.7_
+  - _Boundary: VendorSubmodule_
+
+- [ ] 1.2 vite.config.ts に drawio webapp コピー設定を追加する
+  - 前提: `vite-plugin-static-copy` は plugin-foundation で既に導入済み。本タスクでは `targets` 配列のみ拡張する
+  - `targets` に `{ src: 'vendor/drawio/src/main/webapp/**', dest: 'drawio' }` を追加する
+  - LICENSE / NOTICE 同梱用エントリ `{ src: 'vendor/drawio/LICENSE', dest: 'drawio' }` と `{ src: 'vendor/drawio/NOTICE', dest: 'drawio' }` も追加する
+  - watch モードでビルド時間が許容範囲内なら static-copy を常時有効にする。許容外の場合のみ `command === 'build'` で本番のみ有効化し、watch 時は README に手動 symlink 手順 (`ln -s ../vendor/drawio/src/main/webapp dist/drawio`) を記載する
+  - `pnpm build` を実行し `dist/drawio/index.html`、`dist/drawio/LICENSE`、`dist/drawio/NOTICE` が生成されることを確認する
+  - 完了条件: `pnpm build` 後に `dist/drawio/index.html`、`dist/drawio/LICENSE`、`dist/drawio/NOTICE` が存在する
+  - _Requirements: 1.2, 1.4, 1.5_
+  - _Boundary: ViteConfig_
+  - _Depends: 1.1_
+
+- [ ] 2. DrawioInbound / DrawioOutbound 型定義の実装
+- [ ] 2.1 (P) DrawioProtocol モジュールを実装する
+  - `src/lib/drawio-protocol.ts` を新規作成する
+  - `DrawioInbound` を `event` フィールドの discriminated union として定義する (init / load / autosave / save / export / exit / dialog / prompt)
+  - `DrawioOutbound` を `action` フィールドの discriminated union として定義する (load / merge / configure / layout / export)
+  - `any` 型を一切使用しないことを確認する
+  - `verbatimModuleSyntax` に従い `export type` でエクスポートする
+  - 完了条件: `tsc -b` がエラーなく通り、`DrawioInbound` の `event` フィールドで型絞り込みが機能する
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+  - _Boundary: DrawioProtocol_
+
+- [ ] 3. DrawioUrl ヘルパーの実装
+- [ ] 3.1 (P) buildDrawioUrl 純粋関数を実装する
+  - `src/lib/drawio-url.ts` を新規作成する
+  - `DrawioUrlOptions` インターフェースを定義する (`spin`, `libraries`, `noSaveBtn`, `noExitBtn`, `lang`, `extraParams`)
+  - `buildDrawioUrl(basePath: string, opts?: DrawioUrlOptions): string` を実装する
+  - `embed=1` と `proto=json` を常に付与する
+  - `lang` が未指定の場合は `ja` をデフォルトとして使用する
+  - 完了条件: `buildDrawioUrl('app://xxx/drawio/index.html')` の戻り値に `embed=1&proto=json&lang=ja` が含まれる
+  - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - _Boundary: DrawioUrl_
+
+- [ ] 4. DrawioBridge クラスの実装
+- [ ] 4.1 DrawioBridge の mount / dispose / postMessage 送信を実装する
+  - `src/lib/drawio-bridge.ts` を新規作成する
+  - `DrawioBridgeCallbacks`、`DrawioBridgeMountOptions`、`DrawioBridge`、`DrawioExportFormat` を design.md の Service Interface のとおり定義する (`load` / `replaceContent` / `requestSave` / `requestExport` / `setTheme` / `setLibraries` / `sendMessage` を全て含む)
+  - `createDrawioBridge(app: App): DrawioBridge` ファクトリ関数を実装する
+  - `mount(container, opts)` で `document.createElement('iframe')` を使用し iframe を生成する (`innerHTML` 禁止)
+  - iframe の `sandbox` 属性に `allow-scripts allow-same-origin allow-downloads` を設定する
+  - `app.vault.adapter.getResourcePath('drawio/index.html')` で `app://` URL を取得し `buildDrawioUrl` に渡す。失敗時は `console.error` でログし mount を中断する
+  - `window.addEventListener('message', handler)` でメッセージを受信し `event.source === iframe.contentWindow` で送信元を検証する。`event.origin` 文字列比較は使用しない
+  - `dispose()` を design.md の cleanup 順序 (listener 解除 → callbacks クリア → `iframe.src='about:blank'` → `iframe.remove()` → 参照 null 化) で実装する
+  - `dispose()` 冪等化: 2 回目以降の呼び出しは内部 flag で no-op にする
+  - `mount()` 重複呼び出し時は内部で `dispose()` を呼んでから新規 mount する
+  - `isMounted` プロパティ (getter) を実装する
+  - 完了条件: `mount()` → `dispose()` のライフサイクルで iframe の追加・除去が確認でき、`isMounted` が正しく更新され、`dispose()` の複数回呼び出しで例外が出ない
+  - _Requirements: 3.1, 3.2, 3.12, 3.13, 3.14, 3.15, 5.1, 5.2, 5.4, 7.2, 7.5_
+  - _Boundary: DrawioBridge_
+  - _Depends: 2.1, 3.1_
+
+- [ ] 4.2 (P) DrawioBridge の inbound メッセージハンドリングを実装する
+  - `event.data` の `JSON.parse` を try/catch で囲み、失敗時は warn ログを出して return する
+  - `init` イベント受信時に `{action: 'load', xml: opts.initialXml ?? ''}` を drawio へ返信する
+  - `save` / `autosave` イベント受信時に対応するコールバック (`onSave` / `onAutosave`) を呼び出す
+  - `export` イベント受信時に `onExport(data, format)` コールバックを呼び出す
+  - `exit` イベント受信時に `onExit` コールバックを呼び出す
+  - `dialog` / `prompt` は本 spec 範囲外。warn ログのみで no-op (downstream で必要になれば extend)
+  - 未知の `event` 値は無視する (型絞り込みで網羅)
+  - 完了条件: `DrawioBridgeCallbacks` の各コールバックが対応する draw.io イベントで呼び出される
+  - _Requirements: 3.3, 3.4, 3.5_
+  - _Boundary: DrawioBridge_
+  - _Depends: 4.1_
+
+- [ ] 4.3 (P) DrawioBridge の outbound API を実装する
+  - `load(xml)` で `{action: 'load', xml}` を postMessage する
+  - `replaceContent(xml)` で `{action: 'merge', xml}` を postMessage する (load との使い分けは design.md の Service Interface コメント参照)
+  - `requestSave()` で `{action: 'load', xml: <現在キャッシュした XML>, autosave: 1}` 相当の保存要求を送る (drawio embed 仕様に従う)
+  - `requestExport(format)` で `{action: 'export', format}` を postMessage する。結果は `event:'export'` 経由で `callbacks.onExport` に届く
+  - `setTheme(theme)` で `{action: 'configure', config: {ui: theme === 'dark' ? 'dark' : 'kennedy'}}` を postMessage する
+  - `setLibraries(libs)` で `{action: 'configure', config: {defaultLibraries: ..., libraries: libs}}` 相当の postMessage を送る (drawio settings spec が詳細マッピングを確定)
+  - `sendMessage(msg: DrawioOutbound)` で任意の outbound を postMessage する汎用メソッドを実装する
+  - 全ての outbound API は: (a) `!isMounted` の場合は warn ログで no-op、(b) `iframe.contentWindow == null` の場合も warn ログで no-op、(c) 送信は `JSON.stringify(msg)` + `targetOrigin='*'`
+  - 完了条件: 各 API メソッドが `iframe.contentWindow.postMessage` を正しい引数で呼び出し、未 mount 状態で呼んでも例外が出ない
+  - _Requirements: 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.16_
+  - _Boundary: DrawioBridge_
+  - _Depends: 4.1_
+
+- [ ] 4.4 DrawioExportFormat union を `'xmlpng' | 'xmlsvg'` で additive 拡張する (downstream coordination: drawio-file-io)
+  - `DrawioExportFormat` を `'png' | 'svg' | 'xml' | 'pdf' | 'xmlpng' | 'xmlsvg'` に拡張する (`src/lib/drawio-bridge.ts` または型定義モジュール)
+  - `DrawioOutboundExport.format` (`src/lib/drawio-protocol.ts`) を同じ union に拡張する
+  - `requestExport(format)` の実装は format をそのまま postMessage するため変更不要 (string パススルー); 拡張は純粋に additive で既存 union メンバの挙動に影響しない
+  - drawio-file-io spec の Task 0.1 が同じ拡張を要求しており、本タスクはその upstream 実装にあたる (file-io 側 Task 5.2 が `_Depends: 0.1` で本タスク完了を待つ)
+  - `'xmlpng'` / `'xmlsvg'` は drawio embed 標準 format で、エクスポートされた PNG/SVG バイナリに mxfile XML を埋め込む lossless 形式
+  - 完了条件: TypeScript 型チェックが通り、`bridge.requestExport('xmlsvg')` / `bridge.requestExport('xmlpng')` が型エラーなくコンパイルされる
+  - _Requirements: 3.8 (format extension)_
+  - _Boundary: DrawioBridge, DrawioOutboundExport_
+  - _Depends: 4.3_
+
+- [ ] 5. 疎通確認用デモコマンドの実装
+- [ ] 5.1 DemoCommand モジュールを実装する
+  - `src/commands/` ディレクトリを作成する
+  - `src/commands/demo-command.ts` を新規作成する
+  - `DEMO_VIEW_TYPE = 'drawio-demo'` を定義する
+  - `registerDemoCommand(plugin: Plugin): void` を実装する
+  - `plugin.addCommand()` で "Open drawio demo" コマンドを登録する
+  - コマンド実行時に `plugin.app.workspace.getLeaf(true)` で新しいリーフを開く
+  - `DrawioBridge.mount()` で固定 `<mxfile>` XML (最小限のサンプル図) を渡して iframe を表示する
+  - リーフ close 時 (`leaf.detach` または `view.onClose`) に `DrawioBridge.dispose()` を確実に呼ぶ
+  - 完了条件: Obsidian コマンドパレットから "Open drawio demo" を実行すると新しいリーフに draw.io iframe が表示される
+  - _Requirements: 6.1, 6.2, 6.3, 6.4_
+  - _Boundary: DemoCommand_
+  - _Depends: 4.1, 4.2, 4.3_
+
+- [ ] 5.2 src/main.ts に DemoCommand を登録する
+  - `ObsidianDrawioPlugin.onload()` 内で `registerDemoCommand(this)` を呼び出す
+  - import を `src/commands/demo-command.ts` から追加する
+  - 完了条件: `pnpm build` がエラーなく通り、Obsidian に plugin をロードするとコマンドが登録される
+  - _Requirements: 6.4, 7.3_
+  - _Boundary: PluginEntry_
+  - _Depends: 5.1_
+
+- [ ] 6. cleanup・審査要件の検証と統合確認
+- [ ] 6.1 onunload cleanup の検証とリグレッションチェックを行う
+  - `ObsidianDrawioPlugin.onunload()` が呼ばれたとき、すべての `DrawioBridge` インスタンスの `dispose()` が呼ばれることを確認する
+  - デモコマンドで開いたリーフを手動で閉じたとき iframe が DOM から除去されていることを確認する
+  - `dispose()` を複数回呼んでも例外が発生しないことを確認する
+  - `innerHTML` を使用している箇所がないことを `grep -r "innerHTML"` で確認する
+  - 完了条件: `grep -r "innerHTML" src/` が空を返し、dispose の冪等性が確認される
+  - _Requirements: 7.1, 7.2, 7.3_
+  - _Boundary: DrawioBridge, DemoCommand_
+  - _Depends: 5.2_
+
+- [ ] 6.2 ライセンスファイルの同梱と draw.io 疎通の最終確認を行う
+  - `pnpm build` 後に `dist/drawio/LICENSE` と `dist/drawio/NOTICE` が存在することを確認する
+  - Obsidian Desktop で実際にデモコマンドを実行し draw.io 編集 UI が表示されることを手動確認する
+  - 固定 XML が draw.io に正しく渡され図形が描画された状態で表示されることを確認する
+  - CSP 警告がコンソールに出力されていないことを確認する (または警告が出た場合は代替手段を適用する)
+  - 完了条件: Obsidian Desktop でデモコマンドが正常動作し、`dist/drawio/LICENSE` が存在する
+  - _Requirements: 1.5, 5.2, 5.3, 7.4_
+  - _Boundary: ViteConfig, DrawioBridge_
+  - _Depends: 6.1_
+
+- [ ] 6.3 README に Apache-2.0 表記と submodule 初期化手順を追加する
+  - リポジトリ root の README.md に以下を追記する:
+    - "Bundles draw.io ([Apache-2.0](https://github.com/jgraph/drawio/blob/master/LICENSE))" の表記
+    - 固定している drawio タグ (例: `v24.7.17`) と更新ポリシー
+    - clone 時の初期化手順: `git clone --recurse-submodules ...` または既存 clone での `git submodule update --init --recursive`
+    - watch モードで symlink を使う場合の手順 (タスク 1.2 でその方針を採用した場合のみ)
+  - 完了条件: README.md に Apache-2.0 表記、固定タグ、submodule 初期化手順が記載されている
+  - _Requirements: 1.5, 7.4, 7.6, 7.7_
+  - _Boundary: VendorSubmodule, ViteConfig_
+  - _Depends: 6.2_
