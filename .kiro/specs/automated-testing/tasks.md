@@ -107,7 +107,7 @@
   - _Requirements: 3.3, 3.7_
   - _Boundary: plugin-install helper_
 
-- [ ] 3.3 (P) drawio frame helper の実装
+- [x] 3.3 (P) drawio frame helper の実装
   - Playwright `frameLocator` で drawio iframe を取得するラッパと、`waitForReady(timeoutMs)` (DOM 要素出現 AND `init` postMessage 履歴の両条件) を実装
   - `page.evaluate` で `window.addEventListener('message', ...)` を仕込み、テスト側から受信履歴を取得できる API を提供
   - timeout 失敗時は iframe URL と受信メッセージ件数を含めた診断メッセージを投げる
@@ -213,3 +213,4 @@
 - 2.1: `readDrawioXml` は入力が `<mxfile>` プレフィックスを持つと早期 return で `compressed: false` を返すため、`writeDrawioXml(xml, true)` で生成した値を再 read しても圧縮 flag が保持されない (現実装仕様)。drawio-file-io spec のロジック側の課題として upstream にフィードバックするか別 spec で fix を切り出す必要あり。本 spec ではテストで現挙動を pin down している。
 - 2.5/2.6/2.7: `import type { Plugin } from "obsidian"` を持つモジュールを test から import すると、verbatimModuleSyntax + Vite 解決で `obsidian` (main:"") を実体ロードしようとして失敗する。`vitest.config.ts` に `stub-obsidian` plugin を追加し、空 module を返す形で回避。task 2.5 で初導入、後続 test も同 plugin を共有。
 - 2.7: `external-watcher.ts` から `isDrawioFile` を export 公開、`isSelfWriteSuppressed` を新規 export 追加 (echo suppression の純粋判定部抽出)。本体振る舞いは不変、テスト容易性のための最小 surface 拡張のみ (Req 7.4 準拠)。
+- 3.3: drawio iframe の selector default を `'iframe[data-drawio]'` としているが、現行 `drawio-bridge.ts` の iframe には `data-drawio` 属性が付与されていない (sandbox のみ)。`getDrawioFrame(page, { selector: 'iframe[sandbox]' })` で override するか、task 5.x で実機検証時に既存実装に `data-drawio` 属性を付与する patch (drawio-embed-bridge spec への enhancement) を別途切り出す必要あり。
