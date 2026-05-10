@@ -26,7 +26,7 @@
   - _Boundary: drawio-asset-loader_
   - _Depends: 1.2_
 
-- [ ] 2.2 (P) drawio-bootstrap-html 実装
+- [x] 2.2 (P) drawio-bootstrap-html 実装
   - `data:text/html,<encodeURIComponent(...)>` に渡せる最小 HTML 文字列を生成する純関数として実装する
   - 戻り値の `<script>` 内で、`window.parent.postMessage(JSON.stringify({event:"iframe"}), "*")` を送出し、`message` listener で `{action:"script", script: source}` を受け取り `document.createElement('script')` + `script.text = source` + `document.head.appendChild` で実行する
   - ユーザ入力を一切混入させず、引数なしで常に同一文字列を返す
