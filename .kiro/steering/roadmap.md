@@ -74,3 +74,19 @@ draw.io の本体ロジックは jgraph/drawio (Apache-2.0) を `vendor/drawio` 
 > **Status note (2026-05-10)**: 上記 `[x]` は **spec (requirements/design/tasks) 生成完了** を示す。実装はこれから (`/kiro-impl <feature>`)。
 >
 > **実装 wave 順序の注意**: cross-spec review で発覚した整合上、**drawio-file-io と drawio-settings-and-config は同 wave で実装する**ことを推奨 (file-io が legacy トップレベル設定を追加 → settings の `migrateSettings` が `drawio.*` 名前空間へ吸収するため、file-io 単独実装ではコンパイルが通らない可能性)。実装時は file-io spec の `DrawioSettings` 型を settings spec と並走させるか、stub を先に置くこと。
+
+## Phase 2 (2026-05-10 追加)
+
+ホスト側 UI の英語対応と、嫌悪された sidecar JSON 構造の廃止。
+
+### Existing Spec Updates
+
+- [x] drawio-settings-and-config — **per-diagram 設定機能そのものを廃止**。要件 4 (sidecar `<file>.drawio.json` 永続化) と要件 5 (`DiagramSettingsModal` per-diagram 編集 UI) を削除し、mxfile への埋め込み代替案も採用しない。設定はグローバル (`PluginSettings.drawio.*`) のみ。`src/lib/per-diagram-config.ts` / `src/views/DiagramSettingsModal.tsx` / 関連 rename・delete subscription / sidecar 除外ロジック / `drawio: 図の設定を編集` command を撤去。merge 関数も per-diagram レイヤを除去してグローバル直読みに簡略化。Dependencies: なし (純粋な削減リファクタ)。
+
+### Specs (dependency order)
+
+- [x] plugin-i18n — プラグイン自身の UI 文字列 (Notice / Settings / Modal / Banner / Diff Modal / Command name 等) を ja/en で切り替えられる i18n 基盤と en リソースを提供する。Obsidian locale 追従 + 明示選択 + フォールバック。drawio iframe 自体の `language` 設定 (drawio-settings-and-config 要件 6) とは独立。Dependencies: plugin-foundation, drawio-settings-and-config (`language` 設定キーへの相乗り or 別キー新設の判断はこの spec で行う)。**実装 wave 上の前提**: `src/views/SettingsTab.tsx` を改変するタスク (plugin-i18n tasks 3.4 / 4.1 等) は drawio-settings-and-config の SettingsTab 構築 (tasks 3.x) 完了後に着手すること。SettingsTab.tsx 未存在の状態で plugin-i18n を走らせるとコンパイル不整合になる。
+
+### Direct Implementation Candidates
+
+- なし (どちらも spec 境界をまたぐ変更のため直書き不可)

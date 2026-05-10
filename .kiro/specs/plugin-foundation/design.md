@@ -505,9 +505,23 @@ export function createReactMountManager(): ReactMountManager;
 `PluginSettings` は Obsidian の `loadData`/`saveData` API によって Vault の `.obsidian/plugins/obsidian-drawio/data.json` に JSON 形式で永続化される。
 
 ```typescript
-// 初期スキーマ (後続 spec が拡張)
-interface PluginSettings {
-  [key: string]: unknown;
+// 初期スキーマ。後続 spec は同名 interface 宣言またはモジュール宣言マージで
+// フィールドを追加する。`[key: string]: unknown` のような index signature は
+// 使わない (any 化を招き型補完を弱めるため)。
+export interface PluginSettings {}
+```
+
+後続 spec が拡張する例:
+
+```typescript
+// 例: drawio-settings-and-config spec が拡張する場合
+// src/lib/settings-ext.ts (もしくは当該 spec 内のモジュール)
+import type { DrawioSettings } from './drawio-settings';
+
+declare module './settings' {
+  interface PluginSettings {
+    drawio: DrawioSettings;
+  }
 }
 ```
 

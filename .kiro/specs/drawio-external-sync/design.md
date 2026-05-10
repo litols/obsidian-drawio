@@ -64,6 +64,7 @@
 - `DrawioSettings` 型の破壊変更 → ExternalSyncSettings 統合が再検証必要
 - `ExternalChangeEvent` 型の変更 → Public API の `subscribe` consumer が再検証必要
 - `plugin.api` の公開シグネチャ変更 (version 1 → 2) → AI エージェント側スクリプトが再検証必要
+- **可視 UI 文字列の追加・変更時** (`external-watcher.ts` / `ExternalChangeBanner.tsx` / `DiffModal.tsx` 等本 spec 所有ファイルの UI 文言): plugin-i18n が管理する `src/lib/i18n/locales/{ja,en}.ts` を同時更新し、`pnpm verify:i18n` (または同等の検証スクリプト) を通すこと。新規ハードコード文字列はリリース前に必ず `t()` 化する。
 
 ---
 

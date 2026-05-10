@@ -2,18 +2,19 @@
 
 ## 概要
 
-`drawio-settings-and-config` は、Obsidian プラグインユーザーが draw.io ダイアグラムエディタの動作をグローバルおよびファイル単位で設定できる UI・ロジック層を提供する。`plugin-foundation` の `PluginSettings` を `drawio` 名前空間で拡張し、React 製の `SettingsTab` / `DiagramSettingsModal` と、Obsidian テーマ追従・per-diagram 設定永続化の配線を実現する。
+`drawio-settings-and-config` は、Obsidian プラグインユーザーが draw.io ダイアグラムエディタの動作をグローバルに設定できる UI・ロジック層を提供する。`plugin-foundation` の `PluginSettings` を `drawio` 名前空間で拡張し、React 製の `SettingsTab` と Obsidian テーマ追従の配線を実現する。
 
-**目的**: グローバル設定 UI、テーマ追従、per-diagram 設定の永続化・編集 UI を一元提供し、後続の `drawio-external-sync` spec が設定キーを安全に追加できる拡張ポイントも確保する。  
+per-diagram (図ファイル単位) の設定上書き機能はロードマップ判断により本 spec のスコープから撤去された。sidecar `<file>.drawio.json` 案も mxfile 埋め込み案も採用しない。設定はグローバル一元管理に統一する。
+
+**目的**: グローバル設定 UI、テーマ追従を一元提供し、後続の `drawio-external-sync` spec が設定キーを安全に追加できる拡張ポイントも確保する。  
 **ユーザー**: Obsidian デスクトップユーザー (設定 UI を利用するエンドユーザー) およびプラグイン開発者 (後続 spec の実装者)。  
-**影響**: `src/lib/settings.ts` を拡張し、`src/views/SettingsTab.tsx`・`src/views/DiagramSettingsModal.tsx`・`src/lib/per-diagram-config.ts`・`src/lib/theme-bridge.ts` を新設する。`src/main.ts` には `PluginSettingTab` 登録と `css-change` 購読の追加が必要。
+**影響**: `src/lib/settings.ts` を拡張し、`src/views/SettingsTab.tsx`・`src/lib/theme-bridge.ts` を新設する。`src/main.ts` には `PluginSettingTab` 登録と `css-change` 購読の追加が必要。**既存の per-diagram 関連実装は撤去対象** (詳細は「Migration / 影響」参照)。
 
 ### Goals
 
 - `PluginSettings` の `drawio` 名前空間拡張と `settingsVersion` によるマイグレーション基盤を確立する
 - Obsidian 設定画面に React 製 `SettingsTab` を表示し、全設定項目を GUI で操作できるようにする
 - Obsidian テーマ変更イベントを DrawioBridge.setTheme() に接続し、リアルタイムに追従させる
-- sidecar ファイル (.drawio.json) による per-diagram 設定の永続化と `DiagramSettingsModal` での編集を実現する
 - `drawio-external-sync` spec が設定キーを追加できる UI 統合ポイントを確保する
 
 ### Non-Goals
@@ -22,6 +23,7 @@
 - ファイルフォーマット reader/writer の変更 (drawio-file-io 担当)
 - drawio webapp 本体の改造
 - PNG / SVG メタデータの仕様策定
+- per-diagram 設定上書き / sidecar ファイル / mxfile 埋め込み (本 spec では採用しない)
 - クラウド連携・同期
 - Mobile 対応
 
@@ -31,37 +33,36 @@
 
 - `src/lib/settings.ts` — `DrawioSettings` 型・`DEFAULT_SETTINGS` の `drawio` 名前空間フィールド・`migrateSettings` 関数
 - `src/views/SettingsTab.tsx` — React 製グローバル設定 UI コンポーネント + `DrawioSettingTab` クラス (Obsidian PluginSettingTab サブクラス)
-- `src/views/DiagramSettingsModal.tsx` — React 製 per-diagram 設定編集モーダル
-- `src/lib/per-diagram-config.ts` — `PerDiagramConfig` 型・`loadPerDiagramConfig` / `savePerDiagramConfig` 関数
 - `src/lib/theme-bridge.ts` — `subscribeThemeChange` を消費して DrawioBridge.setTheme() を呼ぶ配線ロジック
-- `src/main.ts` への変更 — `PluginSettingTab` 登録、コマンド登録、テーマ購読の初期化/破棄
+- `src/lib/library-bridge.ts` — `customLibraries` を `DrawioBridge.setLibraries` 用に変換する配線
+- `src/main.ts` への変更 — `PluginSettingTab` 登録、テーマ購読の初期化/破棄
 
 ### Out of Boundary
 
 - `DrawioBridge.setTheme()` の実装 (drawio-embed-bridge が定義済み)
 - `DrawioBridge.setLibraries()` 等の API 追加 (必要なら drawio-embed-bridge へ差し戻し)
 - `DrawioView` のライフサイクル管理 (drawio-file-io 担当)
-- per-diagram 設定の差し込みポイントの実装 (drawio-file-io 担当、本 spec は API を提供するだけ)
 - `drawio-external-sync` の設定スキーマ定義 (external-sync spec が行う。本 spec は UI セクションを予約するのみ)
 
 ### Allowed Dependencies
 
 - `plugin-foundation`: `PluginSettings`、`loadSettings`/`saveSettings`、`ReactMountManager`、`ThemeModule.subscribeThemeChange`、`getCurrentTheme`
 - `drawio-embed-bridge`: `DrawioBridge.setTheme()`、`DrawioBridge.mount()` オプション (`lang`、`libraries` 等)、`buildDrawioUrl` の `DrawioUrlOptions`
-- `obsidian` npm パッケージ (devDependencies、型定義のみ): `PluginSettingTab`、`Modal`、`Notice`、`Plugin`、`Vault`
+- `obsidian` npm パッケージ (devDependencies、型定義のみ): `PluginSettingTab`、`Notice`、`Plugin`、`Vault`
 
 ### Revalidation Triggers
 
 - `PluginSettings` の型定義変更 → 本 spec の設定拡張が再検証必要
 - `DrawioBridge.setTheme()` のシグネチャ変更 → `theme-bridge.ts` が再検証必要
-- `ReactMountManager` の mount/unmount インターフェース変更 → SettingsTab / Modal が再検証必要
-- `DrawioUrlOptions` の型変更 → per-diagram 設定マージ・URL 組み立てが再検証必要
+- `ReactMountManager` の mount/unmount インターフェース変更 → SettingsTab が再検証必要
+- `DrawioUrlOptions` の型変更 → 言語設定・URL 組み立てが再検証必要
 - `drawio-external-sync` spec が `DrawioSettings` に新フィールドを追加した場合 → `migrateSettings` に新バージョン分岐を追加する必要がある
 - `drawio-file-io` spec が `PluginSettings` に追加した legacy トップレベルフィールド (`openDrawioSvg` / `openDrawioPng` / `preserveCompression`) → 本 spec の `migrateSettings` がそれらを `drawio.*` 名前空間に吸収する責務を持つため、レガシーフィールドの追加・改名・削除があれば再検証必要
+- **可視 UI 文字列の追加・変更時** (`SettingsTab.tsx` 等本 spec 所有ファイルのラベル / 説明文 / Notice 文言): plugin-i18n が管理する `src/lib/i18n/locales/{ja,en}.ts` を同時更新し、`pnpm verify:i18n` (または同等の検証スクリプト) を通すこと。新規ハードコード文字列はリリース前に必ず `t()` 化する。
 
 ### 上流 spec とのスキーマ統合方針
 
-`drawio-file-io` design.md は `PluginSettings` のトップレベルに `openDrawioSvg` / `openDrawioPng` / `preserveCompression` を追加すると記述しているが、本 spec は `drawio` 名前空間にすべての drawio 関連設定を集約する方針を採る。`migrateSettings` で legacy フィールドを `drawio.*` に吸収する (要件 1.6 / 7.x):
+`drawio-file-io` design.md は `PluginSettings` のトップレベルに `openDrawioSvg` / `openDrawioPng` / `preserveCompression` を追加すると記述しているが、本 spec は `drawio` 名前空間にすべての drawio 関連設定を集約する方針を採る。`migrateSettings` で legacy フィールドを `drawio.*` に吸収する (要件 1.6 / 5.x):
 
 | Legacy トップレベル | 統合先 | 備考 |
 |---|---|---|
@@ -87,13 +88,12 @@ graph TB
         MigrateTs[migrateSettings]
     end
 
-    subgraph PerDiagramLayer
-        PerDiagramTs[src/lib/per-diagram-config.ts]
-        DiagramModal[src/views/DiagramSettingsModal.tsx]
-    end
-
     subgraph ThemeBridgeLayer
         ThemeBridge[src/lib/theme-bridge.ts]
+    end
+
+    subgraph LibraryBridgeLayer
+        LibraryBridge[src/lib/library-bridge.ts]
     end
 
     subgraph Foundation
@@ -107,37 +107,35 @@ graph TB
     end
 
     subgraph FileIo
-        DrawioView[DrawioView per-diagram hook]
+        DrawioView[DrawioView]
     end
 
     MainTs --> SettingTab
     MainTs --> ThemeBridge
-    MainTs --> PerDiagramTs
+    MainTs --> LibraryBridge
     SettingTab --> SettingsTs
     SettingTab --> ReactMount
-    DiagramModal --> PerDiagramTs
-    DiagramModal --> ReactMount
     ThemeBridge --> ThemeModule
     ThemeBridge --> DrawioBridge
+    LibraryBridge --> DrawioBridge
     SettingsTs --> SettingsBase
     SettingsTs --> MigrateTs
-    DrawioView --> PerDiagramTs
     DrawioView --> DrawioBridge
 ```
 
-**依存方向**: `Foundation` → `SettingsLayer` / `PerDiagramLayer` / `ThemeBridgeLayer` → `PluginEntry`  
-`DrawioBridge` は `ThemeBridgeLayer` と `DrawioView` が consume する。本 spec は API を呼ぶだけで定義しない。
+**依存方向**: `Foundation` → `SettingsLayer` / `ThemeBridgeLayer` / `LibraryBridgeLayer` → `PluginEntry`  
+`DrawioBridge` は `ThemeBridgeLayer` / `LibraryBridgeLayer` / `DrawioView` が consume する。本 spec は API を呼ぶだけで定義しない。
 
 ### テクノロジスタック
 
 | 層 | ツール / バージョン | 役割 |
 |---|---|---|
 | Language | TypeScript 6.x (strict, no any) | 型安全な実装 |
-| UI Framework | React 19 + ReactMountManager | SettingsTab / Modal の createRoot 管理 |
-| Plugin API | obsidian (devDependencies) | PluginSettingTab, Modal, Notice, Vault API |
-| Storage | Obsidian vault.adapter.write/read | sidecar .drawio.json の読み書き |
+| UI Framework | React 19 + ReactMountManager | SettingsTab の createRoot 管理 |
+| Plugin API | obsidian (devDependencies) | PluginSettingTab, Notice, Vault API |
+| Storage | Obsidian data.json (`loadData`/`saveData`) | グローバル設定の永続化 |
 | Theme Detection | ThemeModule (plugin-foundation) | css-change 購読・getCurrentTheme() |
-| Bridge | DrawioBridge (drawio-embed-bridge) | setTheme() 呼び出し |
+| Bridge | DrawioBridge (drawio-embed-bridge) | setTheme() / setLibraries() 呼び出し |
 
 ## ファイル構成
 
@@ -145,20 +143,33 @@ graph TB
 
 ```
 src/
-├── main.ts                          # PluginSettingTab 登録・コマンド登録・テーマ購読追加 (変更)
+├── main.ts                          # PluginSettingTab 登録・テーマ購読追加 (変更)
 ├── lib/
 │   ├── settings.ts                  # DrawioSettings 型・DEFAULT_SETTINGS 拡張・migrateSettings (変更)
-│   ├── per-diagram-config.ts        # PerDiagramConfig 型・load/save 関数 (新規)
-│   └── theme-bridge.ts              # css-change → DrawioBridge.setTheme 配線 (新規)
+│   ├── theme-bridge.ts              # css-change → DrawioBridge.setTheme 配線 (新規)
+│   └── library-bridge.ts            # customLibraries → DrawioBridge.setLibraries 配線 (新規)
 └── views/
-    ├── SettingsTab.tsx              # DrawioSettingTab (PluginSettingTab サブクラス) + React UI (新規)
-    └── DiagramSettingsModal.tsx     # DiagramSettingsModal (Modal サブクラス) + React UI (新規)
+    └── SettingsTab.tsx              # DrawioSettingTab (PluginSettingTab サブクラス) + React UI (新規)
 ```
 
 ### 変更ファイル
 
-- `src/main.ts` — `onload()` に `DrawioSettingTab` 追加 (`this.addSettingTab`)、"drawio: 図の設定を編集" コマンド追加、`ThemeBridge` 初期化・`onunload()` に dispose 追加
+- `src/main.ts` — `onload()` に `DrawioSettingTab` 追加 (`this.addSettingTab`)、`ThemeBridge` 初期化・`onunload()` に dispose 追加
 - `src/lib/settings.ts` — `PluginSettings` に `drawio: DrawioSettings` フィールドを追加、`DEFAULT_SETTINGS` 更新、`migrateSettings` 追加
+
+### 撤去対象ファイル / 撤去対象 API
+
+per-diagram 機能撤去に伴い、以下の既存実装は本 spec の改訂で削除する:
+
+- `src/lib/per-diagram-config.ts` (ファイル削除)
+- `src/views/DiagramSettingsModal.tsx` (ファイル削除)
+- `src/main.ts` の `addCommand("drawio: 図の設定を編集", ...)` 登録 (削除)
+- `src/main.ts` の `registerPerDiagramConfigLifecycle(this)` 呼び出し (削除)
+- `vault.on('rename')` / `vault.on('delete')` のうち sidecar 同期目的で登録されているものすべて (削除)
+- 設定マージ関数 (`getMergedSettings` 等) の per-diagram レイヤ (削除し、グローバル設定直読みに簡略化)
+- 上記モジュールに紐づく unit / integration test ファイル (削除)
+
+これらの撤去は tasks.md のクリーンアップタスクで一括して扱う。
 
 ## システムフロー
 
@@ -236,41 +247,15 @@ sequenceDiagram
 | `min` | `'light'` | `'min'` | minimal UI |
 | `atlas` | `'light'` | `'atlas'` | atlas UI |
 
-### per-diagram 設定保存フロー
-
-```mermaid
-sequenceDiagram
-    participant User as ユーザー
-    participant Command as Obsidian Command
-    participant Modal as DiagramSettingsModal
-    participant PerDiagram as per-diagram-config
-    participant Vault as Obsidian Vault
-
-    User->>Command: "drawio: 図の設定を編集" 実行
-    Command->>Modal: open(currentFilePath)
-    Modal->>PerDiagram: loadPerDiagramConfig(vault, filePath)
-    PerDiagram->>Vault: vault.adapter.read('<file>.drawio.json')
-    Vault-->>PerDiagram: JSON or not found
-    PerDiagram-->>Modal: PerDiagramConfig (or empty)
-    Modal-->>User: 設定 UI 表示
-
-    User->>Modal: 設定変更 + 確認
-    Modal->>PerDiagram: savePerDiagramConfig(vault, filePath, config)
-    PerDiagram->>Vault: vault.adapter.write('<file>.drawio.json', JSON)
-    Modal->>Modal: close() + unmount React
-```
-
 ## 要件トレーサビリティ
 
 | 要件 | 概要 | コンポーネント | インターフェース |
 |------|------|--------------|----------------|
-| 1.1-1.5 | グローバル設定スキーマ | SettingsModule | DrawioSettings, DEFAULT_SETTINGS |
+| 1.1-1.7 | グローバル設定スキーマ | SettingsModule | DrawioSettings, DEFAULT_SETTINGS |
 | 2.1-2.13 | SettingsTab UI | DrawioSettingTab, SettingsApp | PluginSettingTab |
-| 3.1-3.4 | テーマ追従 | ThemeBridge | subscribeThemeChange, setTheme |
-| 4.1-4.6 | per-diagram 永続化 | PerDiagramConfig | loadPerDiagramConfig, savePerDiagramConfig |
-| 5.1-5.5 | DiagramSettingsModal | DiagramSettingsModal | Modal, ReactMountManager |
-| 6.1-6.3 | 言語・locale 追従 | SettingsModule, DrawioView | DrawioUrlOptions.lang |
-| 7.1-7.4 | 設定マイグレーション | SettingsModule | migrateSettings |
+| 3.1-3.6 | テーマ追従 | ThemeBridge | subscribeThemeChange, setTheme |
+| 4.1-4.3 | 言語・locale 追従 | SettingsModule, DrawioView | DrawioUrlOptions.lang |
+| 5.1-5.4 | 設定マイグレーション | SettingsModule | migrateSettings |
 
 ## コンポーネントとインターフェース
 
@@ -278,10 +263,8 @@ sequenceDiagram
 
 | コンポーネント | 層 | 役割 | 要件カバレッジ | 主要依存 (P0/P1) | Contracts |
 |---|---|---|---|---|---|
-| SettingsModule | Lib | 設定型定義・拡張・マイグレーション | 1, 7 | plugin-foundation PluginSettings (P0) | State |
+| SettingsModule | Lib | 設定型定義・拡張・マイグレーション | 1, 5 | plugin-foundation PluginSettings (P0) | State |
 | DrawioSettingTab | Views | Obsidian PluginSettingTab + React マウント管理 | 2 | ReactMountManager (P0), SettingsModule (P0) | Service |
-| PerDiagramConfigModule | Lib | per-diagram 設定の型定義・load/save | 4 | Obsidian Vault API (P0) | Service, State |
-| DiagramSettingsModal | Views | per-diagram 設定編集モーダル | 5 | ReactMountManager (P0), PerDiagramConfigModule (P0) | Service |
 | ThemeBridge | Lib | css-change → DrawioBridge.setTheme 配線 | 3 | ThemeModule (P0), DrawioBridge (P0) | Event |
 | LibraryBridge | Lib | customLibraries (Vault 相対パス) を読み込み `DrawioBridge.setLibraries` 用の `{ title, entries }` 配列に変換して bridge へ適用 | 2.3, 2.4 | Obsidian Vault API (P0), DrawioBridge (P0), SettingsModule (P0) | Service |
 
@@ -294,12 +277,12 @@ sequenceDiagram
 | フィールド | 詳細 |
 |---|---|
 | Intent | `PluginSettings` の `drawio` 名前空間を定義し、DEFAULT_SETTINGS と migrateSettings を提供する |
-| 要件 | 1.1, 1.2, 1.3, 1.4, 1.5, 7.1, 7.2, 7.3, 7.4 |
+| 要件 | 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4 |
 
 **責務と制約**
 
 - `DrawioSettings` interface を定義し、後続 spec (external-sync) が `DrawioSettings` に型安全にフィールドを追加できるよう `Partial` 拡張可能な設計にする
-- `PluginSettings` を `{ drawio: DrawioSettings; [key: string]: unknown }` として拡張する (既存契約を破壊しない)
+- `PluginSettings` (plugin-foundation が空 interface で公開) を declaration merging で拡張し `drawio: DrawioSettings` フィールドを追加する。`[key: string]: unknown` のような index signature は使わない (any 化を招き型補完を弱めるため)
 - `migrateSettings` は `unknown` を受け取り常に `DrawioSettings` を返す; throw しない
 
 **依存関係**
@@ -354,12 +337,21 @@ export function migrateSettings(raw: unknown): DrawioSettings;
 // settingsVersion を最新に更新して返す
 
 // PluginSettings を拡張
-// plugin-foundation の PluginSettings に drawio フィールドを追加
-// (plugin-foundation spec の PluginSettings に [key: string]: unknown があるため型安全に拡張可能)
-export interface DrawioPluginSettings {
-  drawio: DrawioSettings;
+// plugin-foundation が空 interface で公開する `PluginSettings` に
+// declaration merging で `drawio` フィールドを追加する。
+// (`[key: string]: unknown` のような index signature は使わない)
+declare module './settings' {
+  interface PluginSettings {
+    drawio: DrawioSettings;
+  }
 }
+
+// 内部的に「drawio フィールドが必ず存在する PluginSettings」を表す
+// 型エイリアス (本 spec 内コンシューマ向け; 公開 API ではない)。
+export type DrawioPluginSettings = PluginSettings & { drawio: DrawioSettings };
 ```
+
+`PluginSettings` (drawio フィールドを宣言マージ後) は Obsidian の data.json (`plugin.loadData()` / `plugin.saveData()`) に永続化する。本 spec ではこの単一階層しか持たず、ファイル単位の上書きは存在しないため、コンシューマ (drawio-file-io 等) は `settings.drawio.*` を直接参照すれば足りる。
 
 ##### external-sync 統合パターン
 
@@ -399,88 +391,12 @@ export function resolveBridgeTheme(
 
 ---
 
-#### PerDiagramConfigModule
-
-| フィールド | 詳細 |
-|---|---|
-| Intent | per-diagram 設定の型定義と sidecar ファイルへの load/save を提供する |
-| 要件 | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 |
-
-**責務と制約**
-
-- sidecar パスは `<filePath>.json` (例: `diagrams/flow.drawio` → `diagrams/flow.drawio.json`)
-- `vault.adapter.read` / `vault.adapter.write` のみ使用 (Vault API)
-- JSON パースエラー時は空の `PerDiagramConfig` を返し throw しない
-
-**依存関係**
-
-- Inbound: `DiagramSettingsModal` — save 呼び出し (P0)
-- Inbound: `DrawioView` (drawio-file-io) — load 呼び出し (P1)
-- External: Obsidian `Vault` / `vault.adapter` — ファイル読み書き (P0)
-
-**Contracts**: Service [x] / API [ ] / Event [ ] / Batch [ ] / State [x]
-
-##### Service Interface
-
-```typescript
-// src/lib/per-diagram-config.ts
-
-import type { Vault } from 'obsidian';
-import type { DrawioTheme } from './settings.ts';
-
-export interface PerDiagramConfig {
-  libraries?: string[];
-  theme?: DrawioTheme;
-  math?: boolean;
-  grid?: boolean;
-}
-
-export function sidecarPath(filePath: string): string;
-// 例: 'diagrams/flow.drawio' → 'diagrams/flow.drawio.json'
-
-export async function loadPerDiagramConfig(
-  vault: Vault,
-  filePath: string,
-): Promise<PerDiagramConfig>;
-// sidecar が存在しない場合 {} を返す
-// JSON パースエラー時も {} を返す (console.warn)
-
-export async function savePerDiagramConfig(
-  vault: Vault,
-  filePath: string,
-  config: PerDiagramConfig,
-): Promise<void>;
-// vault.adapter.write でアトミック書き込み
-// config が空オブジェクトの場合はファイルを削除する
-
-export function registerPerDiagramConfigLifecycle(plugin: Plugin): void;
-// vault.on('rename', (file, oldPath) => sidecar の rename を追従)
-// vault.on('delete', file => 対応する sidecar も削除)
-// 監視対象拡張子: '.drawio' / '.drawio.svg' / '.drawio.png'
-// 失敗時は console.error + Notice 表示、throw しない
-// plugin.registerEvent でラップして onunload 時に自動解除する
-```
-
-##### Sidecar Lifecycle 不変条件
-
-- `.drawio` ファイル `foo/bar.drawio` の sidecar は `foo/bar.drawio.json`
-- リネーム/移動: 元 sidecar が存在する場合のみ rename を試みる (存在しない場合は no-op)
-- 削除: 元 sidecar が存在する場合のみ削除を試みる (存在しない場合は no-op)
-- ファイル形式判定 (drawio-file-io 側 `readDrawioFile`): `.json` 拡張子は drawio フォーマット判定対象外として除外する
-- `DrawioView` の `registerExtensions` は `.drawio` のみを登録するため、`.drawio.json` は通常の Obsidian view (JSON view 等) で開かれる
-
-- Preconditions: `filePath` は Vault 内の有効なパス
-- Postconditions: `savePerDiagramConfig` 後に `loadPerDiagramConfig` を呼ぶと同一設定が返る
-- Invariants: load は throw しない; save は I/O エラーを caller に伝播する
-
----
-
 #### ThemeBridge
 
 | フィールド | 詳細 |
 |---|---|
 | Intent | css-change イベントを DrawioBridge.setTheme() に接続する配線ロジック |
-| 要件 | 3.1, 3.2, 3.3, 3.4 |
+| 要件 | 3.1, 3.2, 3.3, 3.4, 3.5, 3.6 |
 
 **責務と制約**
 
@@ -577,55 +493,12 @@ export class DrawioSettingTab extends PluginSettingTab {
 - external-sync 設定セクションは `<section data-spec="external-sync">` で予約し、実際の設定コンポーネントは external-sync spec が実装する
 - Risks: React 更新が Obsidian のテーマ変更と競合しないよう、`onSettingsChange` で保存後に re-render をトリガーすること
 
----
-
-#### DiagramSettingsModal
-
-| フィールド | 詳細 |
-|---|---|
-| Intent | per-diagram 設定を編集する React 製モーダル。Obsidian Modal サブクラス |
-| 要件 | 5.1, 5.2, 5.3, 5.4, 5.5 |
-
-**責務と制約**
-
-- Obsidian の `Modal` を継承し `onOpen()` で React マウント、`onClose()` で unmount
-- 「グローバル設定を使用」を示す indeterminate 状態を `undefined` フィールドで表現する
-
-**依存関係**
-
-- Inbound: Obsidian command (P0)
-- Outbound: `ReactMountManager` — createRoot/unmount (P0)
-- Outbound: `PerDiagramConfigModule` — load/save (P0)
-
-**Contracts**: Service [x] / API [ ] / Event [ ] / Batch [ ] / State [ ]
-
-##### Service Interface
-
-```typescript
-// src/views/DiagramSettingsModal.tsx
-
-import { Modal, type App } from 'obsidian';
-import type { Vault } from 'obsidian';
-
-export class DiagramSettingsModal extends Modal {
-  constructor(app: App, vault: Vault, filePath: string, onSave: () => void);
-  onOpen(): void;
-  onClose(): void;
-}
-```
-
-**実装ノート**
-
-- Integration: コマンドから `new DiagramSettingsModal(app, vault, activeFilePath, reloadView).open()` で起動
-- Validation: `filePath` が空のときコンストラクタで `Notice` を出して `close()` する
-- Risks: `onClose()` は ESC キーや背景クリックでも発火するため unmount を必ず実行すること
-
 ## データモデル
 
 ### ドメインモデル
 
 ```
-DrawioPluginSettings (Obsidian data.json に永続化)
+PluginSettings (Obsidian data.json に永続化; drawio フィールドは本 spec が宣言マージで追加)
   └── drawio: DrawioSettings
         ├── settingsVersion: number
         ├── theme: DrawioTheme
@@ -637,27 +510,23 @@ DrawioPluginSettings (Obsidian data.json に永続化)
         ├── language: DrawioLanguage
         ├── grid: boolean
         └── ribbonEnabled: boolean
-
-PerDiagramConfig (sidecar <file>.drawio.json に永続化)
-  ├── libraries?: string[]     // 上書きしない場合は undefined
-  ├── theme?: DrawioTheme      // 上書きしない場合は undefined
-  ├── math?: boolean           // 上書きしない場合は undefined
-  └── grid?: boolean           // 上書きしない場合は undefined
 ```
+
+per-diagram 設定型 (`PerDiagramConfig`) は本 spec の改訂で廃止された。
 
 ### 設定マージ優先順位
 
 ```
-per-diagram config (最高優先) > global DrawioSettings > DEFAULT_DRAWIO_SETTINGS
+global DrawioSettings > DEFAULT_DRAWIO_SETTINGS
 ```
 
-`PerDiagramConfig` のフィールドが `undefined` の場合は `DrawioSettings` の値を使用する。
+`DrawioView` および各 bridge は `settings.drawio.*` を直接参照する。ファイル単位の上書きは存在しない。
 
 ### settingsVersion マイグレーション表
 
 | version | 内容 |
 |---------|------|
-| 0 / undefined | 旧バージョン。全フィールドを DEFAULT で補完 |
+| 0 / undefined | 旧バージョン。全フィールドを DEFAULT で補完 + drawio-file-io legacy フィールド吸収 |
 | 1 | 現行スキーマ (本 spec が確立) |
 | 2+ | 将来の external-sync spec 等が追加した場合 |
 
@@ -665,14 +534,13 @@ per-diagram config (最高優先) > global DrawioSettings > DEFAULT_DRAWIO_SETTI
 
 ### エラー戦略
 
-- `loadPerDiagramConfig` — sidecar 不存在 or JSON パースエラー → `{}` を返し `console.warn`
-- `savePerDiagramConfig` — I/O エラー → caller に伝播 (`console.error` + Obsidian `Notice` で通知)
 - `migrateSettings` — 型不一致フィールド → DEFAULT 値で補完、throw しない
 - React mount/unmount エラー → `console.error` でログし他の root に影響しない
+- `LibraryBridge.loadCustomLibraries` — 個別ファイル読み込み失敗 → 当該パスのみ skip し `console.warn`、他のライブラリには影響させない
 
 ### エラーカテゴリ
 
-- **System Error**: Vault I/O 失敗 → Notice 表示 + console.error
+- **System Error**: Vault I/O 失敗 (custom library 読み込み等) → console.error、設定保存自体は続行
 - **Data Error**: JSON スキーマ不一致 → DEFAULT 補完 (graceful degradation)
 - **Runtime Error**: React mount 失敗 → console.error のみ
 
@@ -682,13 +550,11 @@ per-diagram config (最高優先) > global DrawioSettings > DEFAULT_DRAWIO_SETTI
 
 - `migrateSettings(null)` → `DEFAULT_DRAWIO_SETTINGS` を返すこと
 - `migrateSettings({ settingsVersion: 0 })` → 全フィールドが DEFAULT で補完されること
-- `sidecarPath('diagrams/flow.drawio')` → `'diagrams/flow.drawio.json'` を返すこと
-- `loadPerDiagramConfig` — sidecar 不存在時に `{}` を返すこと
-- `loadPerDiagramConfig` — JSON パースエラー時に `{}` を返し throw しないこと
+- `migrateSettings({ openDrawioSvg: false, preserveCompression: false })` → legacy フィールドが `drawio.*` 配下に吸収され、トップレベルから消えていること
+- `resolveBridgeTheme` — マッピング表の全 6 ケース (auto-light, auto-dark, light, dark, kennedy, min, atlas)
 
 ### 統合テスト
 
-- `savePerDiagramConfig` → `loadPerDiagramConfig` で同一データが取得できること
 - `DrawioSettingTab.display()` + `hide()` で React root が正しくマウント/アンマウントされること
 - テーマ設定 `auto` のとき css-change イベントで `DrawioBridge.setTheme` が呼ばれること
 - テーマ設定 `dark` のとき css-change イベントが無視されること
@@ -698,16 +564,26 @@ per-diagram config (最高優先) > global DrawioSettings > DEFAULT_DRAWIO_SETTI
 - 設定画面を開き全設定項目が表示・変更・保存できること
 - 設定画面を閉じて再度開いたとき変更が保持されていること
 - Obsidian テーマ切り替え時に draw.io iframe のテーマが追従すること
-- "drawio: 図の設定を編集" コマンドでモーダルが開き、設定変更後に図が再読み込みされること
 
 ## セキュリティ考慮事項
 
 - `dangerouslySetInnerHTML` 使用禁止 (Obsidian 審査要件)
 - カスタムライブラリパスは Vault 相対パスのみ受け付ける (外部 URL 禁止)
-- sidecar JSON のパースは `JSON.parse` を使用し、スキーマ検証で予期しない型を排除する
+- 永続化される設定 (data.json) には機密情報を含めない
 
 ## マイグレーション戦略
+
+### スキーマバージョン
 
 - `settingsVersion` フィールドでスキーマバージョンを識別する
 - 将来 external-sync spec が `DrawioSettings` に新フィールドを追加する場合、`migrateSettings` にバージョン分岐を追加し DEFAULT で補完する
 - ロールバック: `data.json` を削除すると `DEFAULT_DRAWIO_SETTINGS` で初期化される (データは失われるが安全)
+
+### per-diagram 機能撤去のユーザーデータ影響
+
+- 既存ユーザーの Vault に `<file>.drawio.json` sidecar が残っている可能性があるが、本 spec の改訂後は読み込まれず**無視**される。プラグインから自動削除はしない (Vault 内ファイルへの破壊的操作は避ける)。
+- ユーザーは不要な `*.drawio.json` を手動削除できる。リリースノート/CHANGELOG で周知する責務は実装タスクに含める。
+
+---
+
+Last revised: 2026-05-10 — per-diagram 設定機能撤去 (PerDiagramConfigModule / DiagramSettingsModal / sidecar lifecycle 削除、設定マージを global > DEFAULT に簡略化)

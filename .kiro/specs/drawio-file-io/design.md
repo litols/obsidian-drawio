@@ -67,6 +67,7 @@ This spec assumes a small, additive change to `drawio-embed-bridge` (which is al
 - `PluginSettings` 型の破壊変更 → 本 spec のフィールド定義が再検証必要
 - `readDrawioFile` / `writeDrawioFile` のシグネチャ変更 → `drawio-external-sync` が再検証必要
 - `DrawioView.isDirty` / `DrawioView.reload` のシグネチャ変更 → `drawio-external-sync` が再検証必要
+- **可視 UI 文字列の追加・変更時** (本 spec 所有ファイルの Notice / モーダル / エラー文言): plugin-i18n が管理する `src/lib/i18n/locales/{ja,en}.ts` を同時更新し、`pnpm verify:i18n` (または同等の検証スクリプト) を通すこと。新規ハードコード文字列はリリース前に必ず `t()` 化する。
 
 ## Architecture
 
@@ -598,21 +599,26 @@ WriteDrawioOptions {
 ### PluginSettings 追加フィールド
 
 ```typescript
-// src/lib/settings.ts への追加
-
-export interface PluginSettings {
-  // ... 既存フィールド ...
-  openDrawioSvg: boolean;    // default: true — .drawio.svg を drawio ビューで開く
-  openDrawioPng: boolean;    // default: true — .drawio.png を drawio ビューで開く
-  preserveCompression: boolean; // default: true — .drawio の圧縮形式を維持する
+// src/lib/settings.ts への追加 (legacy トップレベルフィールド)
+// plugin-foundation が空 interface で公開する `PluginSettings` を declaration merging で拡張する。
+// `[key: string]: unknown` のような index signature は使わない (any 化を招き型補完を弱めるため)。
+declare module './settings' {
+  interface PluginSettings {
+    openDrawioSvg: boolean;    // default: true — .drawio.svg を drawio ビューで開く
+    openDrawioPng: boolean;    // default: true — .drawio.png を drawio ビューで開く
+    preserveCompression: boolean; // default: true — .drawio の圧縮形式を維持する
+  }
 }
 
-export const DEFAULT_SETTINGS: PluginSettings = {
+// DEFAULT_SETTINGS (plugin-foundation で定義) に本 spec のデフォルトをマージする
+Object.assign(DEFAULT_SETTINGS, {
   openDrawioSvg: true,
   openDrawioPng: true,
   preserveCompression: true,
-};
+} satisfies Pick<PluginSettings, 'openDrawioSvg' | 'openDrawioPng' | 'preserveCompression'>);
 ```
+
+> 備考: 本 spec が追加するこの 3 フィールドは legacy トップレベルとして残るが、`drawio-settings-and-config` spec の `migrateSettings` がロード時に `drawio.openDrawioSvg` / `drawio.openDrawioPng` / `drawio.compression` 名前空間下に吸収する。コンシューマは migration 後に `settings.drawio.*` を参照する。
 
 ## Error Handling
 
