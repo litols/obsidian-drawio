@@ -115,7 +115,7 @@
   - _Requirements: 3.5, 4.2_
   - _Boundary: drawio-frame helper_
 
-- [ ] 3.4 (P) Vault FS helper の実装
+- [x] 3.4 (P) Vault FS helper の実装
   - `e2e-vault/samples/` のサンプルを read する API、および外部変更をシミュレートする write API を提供
   - 外部書き込み API は `external-watcher` の echo suppression を確実に回避するため、書き込み前に suppression TTL を超える sleep を挟む
   - `node:fs` ベースで実装し、Playwright runtime とは独立に呼び出せる
