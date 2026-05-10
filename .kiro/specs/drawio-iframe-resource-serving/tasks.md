@@ -34,7 +34,7 @@
   - _Requirements: 1.1, 3.1_
   - _Boundary: drawio-bootstrap-html_
 
-- [ ] 2.3 (P) iframe-init/request-manager 実装
+- [x] 2.3 (P) iframe-init/request-manager 実装
   - `HTMLLinkElement` / `HTMLScriptElement` / `HTMLImageElement` の `setAttribute("href"|"src", ...)` とプロパティ setter をパッチし、相対 URL を Responses 表ベースで Blob URL に解決する
   - `HTMLElement.style` を Proxy 化して CSS 値中の `url(...)` を傍受し書換える
   - `XMLHttpRequest.prototype.open(method, url, ...)` の `url` をパッチする
