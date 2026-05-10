@@ -3,6 +3,11 @@ export interface DrawioUrlOptions {
   libraries?: boolean;
   noSaveBtn?: boolean;
   noExitBtn?: boolean;
+  /** 0: hide the combined "Save & Exit" button. drawio adds this in autosave mode by default. */
+  saveAndExit?: boolean;
+  autosave?: boolean;
+  /** drawio UI theme. "kennedy" (= classic) is drawio.com の従来 UI。 */
+  ui?: "kennedy" | "atlas" | "dark" | "min" | "sketch";
   lang?: string;
   extraParams?: Record<string, string | number | boolean>;
 }
@@ -15,6 +20,10 @@ export function buildDrawioUrl(basePath: string, opts?: DrawioUrlOptions): strin
   if (opts?.libraries ?? true) params.set("libraries", "1");
   if (opts?.noSaveBtn) params.set("noSaveBtn", "1");
   if (opts?.noExitBtn) params.set("noExitBtn", "1");
+  // saveAndExit: undefined → drawio's default (added when autosave); false → "0" suppresses it.
+  if (opts?.saveAndExit === false) params.set("saveAndExit", "0");
+  if (opts?.autosave) params.set("autosave", "1");
+  if (opts?.ui) params.set("ui", opts.ui);
   params.set("lang", opts?.lang ?? "ja");
   if (opts?.extraParams) {
     for (const [key, value] of Object.entries(opts.extraParams)) {

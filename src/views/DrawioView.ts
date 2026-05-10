@@ -143,6 +143,13 @@ export class DrawioView extends FileView {
     this.bridge.mount(container, {
       initialXml: result.xml,
       lang: resolveDrawioLanguage(this.plugin.settings.drawio?.language ?? "auto"),
+      // 保存はすべて autosave に集約: 手動 Save / Exit / 統合 Save&Exit を UI から外す。
+      noSaveBtn: true,
+      noExitBtn: true,
+      saveAndExit: false,
+      autosave: true,
+      // drawio.com の従来 UI (Kennedy) を強制。Atlas (default) ではサイドバーが出ない。
+      ui: "kennedy",
       callbacks: {
         onAutosave: (xml) => {
           this._lastXml = xml;
