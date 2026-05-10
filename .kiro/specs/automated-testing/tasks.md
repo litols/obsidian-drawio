@@ -43,7 +43,7 @@
 
 ## 2. Unit Tests: 純粋ロジック層の検証
 
-- [ ] 2.1 (P) drawio XML 圧縮判定の round trip テスト
+- [x] 2.1 (P) drawio XML 圧縮判定の round trip テスト
   - 平文 mxfile / `<mxfile><diagram>...base64...</diagram>` 形式の双方を read で正しく分類し、write で逆変換できる境界ケースを網羅する
   - 不正データ・空文字列・長大データに対するフォールバック挙動を明示的に検証
   - `pnpm test src/lib/drawio-formats/drawio-xml.test.ts` で全ケース pass する
@@ -210,3 +210,4 @@
 ## Implementation Notes
 
 - 1.4: e2e-vault/samples/sample.drawio.png は tEXt チャンクで mxfile を埋め込み (zTXt の代わり)。drawio-png reader は両対応のため fixture 機能としては問題ない。task 2.2 (PNG unit test) で zTXt 用テストデータはインラインで別途生成すること。
+- 2.1: `readDrawioXml` は入力が `<mxfile>` プレフィックスを持つと早期 return で `compressed: false` を返すため、`writeDrawioXml(xml, true)` で生成した値を再 read しても圧縮 flag が保持されない (現実装仕様)。drawio-file-io spec のロジック側の課題として upstream にフィードバックするか別 spec で fix を切り出す必要あり。本 spec ではテストで現挙動を pin down している。
