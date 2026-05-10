@@ -17,6 +17,13 @@ export default defineConfig({
     {
       name: "e2e",
       testDir: "./tests/e2e",
+      // _-prefixed spec は手動・診断用なので通常 e2e からは除外する
+      testIgnore: /_.*\.spec\.ts$/,
+    },
+    {
+      name: "e2e-manual",
+      testDir: "./tests/e2e",
+      testMatch: /_manual\.spec\.ts$/,
     },
   ],
 });

@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "e2e:setup": "playwright test --project=e2e-setup",
     "e2e:cleanup": "node tests/e2e-setup/cleanup.ts",
-    "e2e": "playwright test --project=e2e"
+    "e2e": "playwright test --project=e2e",
+    "e2e:manual": "playwright test --project=e2e-manual"
   },
   "dependencies": {
     "pako": "^2.1.0",
