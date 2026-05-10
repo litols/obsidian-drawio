@@ -64,7 +64,7 @@
   - _Requirements: 2.3_
   - _Boundary: drawio-svg_
 
-- [ ] 2.4 (P) postMessage envelope shape のテスト
+- [x] 2.4 (P) postMessage envelope shape のテスト
   - `DrawioInbound*` (`load`/`autosave`/`save`/`export`/`exit`) と `DrawioOutbound*` (`load`/`merge`/`configure`/`export`) の各メッセージが、必須フィールドと型契約に従うことを runtime レベルで検証
   - 不正 shape の入力に対して型ガードが false を返すこと
   - `pnpm test src/lib/drawio-protocol.test.ts` で全ケース pass する
