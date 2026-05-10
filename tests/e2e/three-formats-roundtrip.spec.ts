@@ -7,9 +7,7 @@ import { vaultRoot, type SampleName } from "../helpers/vault-fs.ts";
 
 const FORMATS: SampleName[] = ["empty.drawio", "sample.drawio.svg", "sample.drawio.png"];
 
-// FIXME: drawio iframe sub-resource が ERR_BLOCKED_BY_CLIENT (drawio-iframe-init
-// spec の FIXME 参照)。upstream 解決後に enable する。
-test.fixme("three-formats-roundtrip: all three formats open and iframe becomes ready", async () => {
+test("three-formats-roundtrip: all three formats open and iframe becomes ready", async () => {
   installPluginIntoVault();
   const { app, window } = await launchObsidianForVault(vaultRoot());
   await installMessageCapture(window);

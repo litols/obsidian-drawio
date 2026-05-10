@@ -5,12 +5,7 @@ import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.t
 import { ensurePluginEnabled, openFile } from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
-// FIXME: Obsidian の app:// protocol handler が drawio webapp の sub-resource
-// (js/main.js, styles/grapheditor.css 等) を ERR_BLOCKED_BY_CLIENT で拒否する
-// ため、現状 iframe が bootstrap せず init message を観測できない。
-// drawio-embed-bridge spec のリソース配信戦略 (file:// or 専用 protocol or asset
-// 同梱) を見直す必要があり、本 spec の適用範囲外。
-test.fixme("drawio-iframe-init: opening empty.drawio triggers init/load postMessage", async () => {
+test("drawio-iframe-init: opening empty.drawio triggers init/load postMessage", async () => {
   installPluginIntoVault();
   const { app, window } = await launchObsidianForVault(vaultRoot());
   await installMessageCapture(window);

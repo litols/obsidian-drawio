@@ -88,7 +88,7 @@
   - _Depends: 1.1, 3.1, 3.2_
   - _Requirements: 3.4, 4.1, 4.3_
 
-- [ ] 4.2 (P) E2E drawio-iframe-init 緑化
+- [x] 4.2 (P) E2E drawio-iframe-init 緑化
   - `tests/e2e/drawio-iframe-init.spec.ts` の `test.fixme` を `test` に置換し、残存 FIXME コメントを削除する
   - 待機 / タイムアウトを実機で再調整し、`init` 到達検知ロジックが新方式 (`data:text/html` bootstrap → script 注入経由) と整合することを確認する
   - 本タスクは `theme-follow` E2E には触れないこと (本 spec のスコープ外、別 follow-up)
@@ -97,7 +97,7 @@
   - _Requirements: 5.1, 5.4_
   - _Boundary: tests/e2e/drawio-iframe-init.spec.ts_
 
-- [ ] 4.3 (P) E2E three-formats-roundtrip 緑化
+- [x] 4.3 (P) E2E three-formats-roundtrip 緑化
   - `tests/e2e/three-formats-roundtrip.spec.ts` の `test.fixme` を `test` に置換する
   - `.drawio` / `.drawio.svg` / `.drawio.png` の 3 形式の load → save round-trip が成立することを実機で確認する
   - 観測可能な完了条件: Obsidian デスクトップ macOS 上で当該 spec が green
@@ -105,7 +105,7 @@
   - _Requirements: 5.2_
   - _Boundary: tests/e2e/three-formats-roundtrip.spec.ts_
 
-- [ ] 4.4 (P) E2E external-sync-reload 緑化
+- [x] 4.4 (P) E2E external-sync-reload 緑化
   - `tests/e2e/external-sync-reload.spec.ts` の `test.fixme` を `test` に置換する
   - vault 外で書き換えたファイルが iframe 上にリロードされる導線を実機で確認する
   - 観測可能な完了条件: Obsidian デスクトップ macOS 上で当該 spec が green

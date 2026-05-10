@@ -5,9 +5,7 @@ import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.t
 import { openFile } from "../helpers/obsidian-app.ts";
 import { vaultRoot, samplePath, writeExternal } from "../helpers/vault-fs.ts";
 
-// FIXME: drawio iframe sub-resource が ERR_BLOCKED_BY_CLIENT (drawio-iframe-init
-// spec の FIXME 参照)。upstream 解決後に enable する。
-test.fixme("external-sync-reload: external write triggers reload banner", async () => {
+test("external-sync-reload: external write triggers reload banner", async () => {
   installPluginIntoVault();
   const { app, window } = await launchObsidianForVault(vaultRoot());
   await installMessageCapture(window);
