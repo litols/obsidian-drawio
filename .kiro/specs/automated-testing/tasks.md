@@ -35,7 +35,7 @@
   - 実行後に `.obsidian-unpacked/main.js` が存在することを確認できる
   - _Requirements: 3.1, 3.2, 3.7, 6.4_
 
-- [ ] 1.6 Playwright 設定の構築
+- [x] 1.6 Playwright 設定の構築
   - `playwright.config.ts` で `e2e-setup` と `e2e` の 2 project を定義し、`fullyParallel: false`、`timeout: 300s`、`use.trace: 'on-first-retry'`、`use.screenshot: 'only-on-failure'` を指定
   - `globalSetup` または `e2e-setup` project 内で `dist/main.js` と `vendor/drawio` の存在を assert し、未準備時は明示エラーで停止する preflight を組み込む
   - `pnpm e2e --ui` で Playwright Inspector が起動し、project セレクタが表示されることを確認できる
