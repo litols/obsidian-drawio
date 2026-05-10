@@ -61,7 +61,7 @@
   - _Boundary: iframe-init/frame-messenger_
 
 - [ ] 3. Integration: iframe-init エントリと bridge 内部差し替え
-- [ ] 3.1 iframe-init エントリ統合
+- [x] 3.1 iframe-init エントリ統合
   - `src/iframe/init/index.ts` で「RequestManager 起動 → frame-globals 設置 → frame-messenger 起動 → parent からの `{action:"configure", responses, urlParams}` 受信で Responses 表と `urlParams` を反映 → 以降の `{action:"script"}` を head 注入」の起動シーケンスを実装する
   - drawio webapp の embed プロトコル (`init` / `load` / `save` / `autosave` / `export` / `exit` / `dialog` / `prompt`) を frame-messenger 経由で素通しする
   - 観測可能な完了条件: `pnpm build` で `dist/iframe-init.js` が IIFE として生成され、parent からの mock postMessage 列 (`iframe → script (init) → configure → script (app)`) で内部状態が `init` 受信可能になることが integration テストで確認できる
