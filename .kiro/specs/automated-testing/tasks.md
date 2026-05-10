@@ -93,7 +93,7 @@
 
 ## 3. E2E Helpers: 共通基盤
 
-- [ ] 3.1 (P) Obsidian launch helper の実装
+- [x] 3.1 (P) Obsidian launch helper の実装
   - Playwright `_electron.launch()` のラッパ関数を提供し、抽出済 `.obsidian-unpacked/main.js` を `args[0]` に渡して `e2e-vault/` を URL 経由で開く
   - 起動前に `Obsidian.app` 抽出物の存在を assert し、不在時は具体的不足項目を含めたエラーで非ゼロ終了する preflight を実装
   - 単発 sanity test で「起動 → main window が attach される」ことを確認できる
