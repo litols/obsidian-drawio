@@ -52,7 +52,7 @@
   - _Requirements: 1.1, 3.1_
   - _Boundary: iframe-init/frame-globals_
 
-- [ ] 2.5 (P) iframe-init/frame-messenger 実装
+- [x] 2.5 (P) iframe-init/frame-messenger 実装
   - `window.addEventListener("message", ...)` で受信し、`event.source !== window.parent` のメッセージは破棄する
   - JSON 解析と handler ディスパッチを一元化し、複数 handler を内部配列で保持する
   - 送信は `window.parent.postMessage(JSON.stringify(msg), "*")` で行う
