@@ -38,7 +38,8 @@ function makeMinimalPng(extraChunks: Uint8Array[] = []): ArrayBuffer {
   const ihdrView = new DataView(ihdr.buffer);
   ihdrView.setUint32(0, 1); // width
   ihdrView.setUint32(4, 1); // height
-  ihdr[8] = 8; ihdr[9] = 2; // bit depth, color type RGB
+  ihdr[8] = 8;
+  ihdr[9] = 2; // bit depth, color type RGB
 
   // IDAT: filter byte 0 + RGB(255,255,255)
   const raw = Buffer.from([0x00, 0xff, 0xff, 0xff]);
@@ -59,7 +60,10 @@ function makeMinimalPng(extraChunks: Uint8Array[] = []): ArrayBuffer {
   const total = parts.reduce((s, p) => s + p.length, 0);
   const buf = new Uint8Array(total);
   let offset = 0;
-  for (const p of parts) { buf.set(p, offset); offset += p.length; }
+  for (const p of parts) {
+    buf.set(p, offset);
+    offset += p.length;
+  }
   return buf.buffer;
 }
 
@@ -69,8 +73,8 @@ function makeZtxtChunk(keyword: string, text: string): Uint8Array {
   // zTXt format: keyword + null + compression_method(0) + compressed_data
   const data = new Uint8Array(kwBytes.length + 1 + 1 + compressed.length);
   data.set(kwBytes);
-  data[kwBytes.length] = 0x00;      // null terminator
-  data[kwBytes.length + 1] = 0x00;  // compression method zlib
+  data[kwBytes.length] = 0x00; // null terminator
+  data[kwBytes.length + 1] = 0x00; // compression method zlib
   data.set(compressed, kwBytes.length + 2);
   return makeChunk("zTXt", data);
 }
@@ -152,9 +156,13 @@ describe("writeDrawioPngWithMxfile", () => {
     expect(readDrawioPng(second)).toBe(MXFILE2);
     // chunk count should not grow — only one mxfile chunk
     const chunks = pngChunksExtract(new Uint8Array(second));
-    const mxfileChunks = chunks.filter(c => {
+    const mxfileChunks = chunks.filter((c) => {
       if (c.name === "tEXt") {
-        try { return pngChunkText.decode(c.data).keyword === "mxfile"; } catch { return false; }
+        try {
+          return pngChunkText.decode(c.data).keyword === "mxfile";
+        } catch {
+          return false;
+        }
       }
       return false;
     });

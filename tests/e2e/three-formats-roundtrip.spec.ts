@@ -14,7 +14,11 @@ test("three-formats-roundtrip: all three formats open and iframe becomes ready",
   for (const fmt of FORMATS) {
     // FIXME: Obsidian workspace API でのファイルオープン手段は task 7.2 で確認する
     await window.evaluate((path) => {
-      const app = (window as unknown as { app?: { workspace?: { openLinkText?: (p: string, s: string) => void } } }).app;
+      const app = (
+        window as unknown as {
+          app?: { workspace?: { openLinkText?: (p: string, s: string) => void } };
+        }
+      ).app;
       app?.workspace?.openLinkText?.(path, "");
     }, samplePath(fmt));
 

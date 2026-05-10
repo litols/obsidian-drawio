@@ -18,7 +18,9 @@ export function installPluginIntoVault(options?: InstallPluginOptions): { plugin
     throw new Error(`dist/ not found at ${distDir}. Run \`pnpm build\` first.`);
   }
   if (!existsSync(resolve(distDir, "main.js"))) {
-    throw new Error(`dist/main.js not found at ${resolve(distDir, "main.js")}. Run \`pnpm build\` first.`);
+    throw new Error(
+      `dist/main.js not found at ${resolve(distDir, "main.js")}. Run \`pnpm build\` first.`,
+    );
   }
 
   const pluginDir = resolve(vaultPath, ".obsidian", "plugins", pluginId);

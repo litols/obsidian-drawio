@@ -21,10 +21,7 @@ export function installMessageCapture(page: Page): Promise<void> {
   });
 }
 
-export function getDrawioFrame(
-  page: Page,
-  options?: { selector?: string },
-): DrawioFrameHandle {
+export function getDrawioFrame(page: Page, options?: { selector?: string }): DrawioFrameHandle {
   const selector = options?.selector ?? "iframe[data-drawio]";
   const frame = page.frameLocator(selector);
 
@@ -33,9 +30,7 @@ export function getDrawioFrame(
     const deadline = Date.now() + timeoutMs;
 
     while (Date.now() < deadline) {
-      const messages: unknown[] = await page.evaluate(
-        () => globalThis.__drawioMessages ?? [],
-      );
+      const messages: unknown[] = await page.evaluate(() => globalThis.__drawioMessages ?? []);
 
       const hasInitOrLoad = messages.some((m) => {
         if (typeof m === "string") {

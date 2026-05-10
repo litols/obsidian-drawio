@@ -12,7 +12,11 @@ test.skip("theme-follow: switching theme propagates configure message to drawio 
 
   // empty.drawio を開く
   await window.evaluate((path) => {
-    const app = (window as unknown as { app?: { workspace?: { openLinkText?: (p: string, s: string) => void } } }).app;
+    const app = (
+      window as unknown as {
+        app?: { workspace?: { openLinkText?: (p: string, s: string) => void } };
+      }
+    ).app;
     app?.workspace?.openLinkText?.(path, "");
   }, samplePath("empty.drawio"));
 
@@ -27,7 +31,10 @@ test.skip("theme-follow: switching theme propagates configure message to drawio 
   // テーマ切替後に configure メッセージが送信されることを確認
   const messages = await handle.capturedMessages();
   const hasConfigure = messages.some((m) => {
-    const parsed = typeof m === "string" ? JSON.parse(m) as Record<string, unknown> : m as Record<string, unknown>;
+    const parsed =
+      typeof m === "string"
+        ? (JSON.parse(m) as Record<string, unknown>)
+        : (m as Record<string, unknown>);
     return parsed["action"] === "configure";
   });
 

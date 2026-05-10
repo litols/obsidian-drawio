@@ -14,7 +14,11 @@ test("drawio-iframe-init: opening empty.drawio triggers init/load postMessage", 
   // 現時点では obsidian://open?path=... を vault 起動時に渡す形を検討
   await window.evaluate((path) => {
     // Obsidian app global API 経由でファイルを開く試み
-    const app = (window as unknown as { app?: { workspace?: { openLinkText?: (p: string, s: string) => void } } }).app;
+    const app = (
+      window as unknown as {
+        app?: { workspace?: { openLinkText?: (p: string, s: string) => void } };
+      }
+    ).app;
     app?.workspace?.openLinkText?.(path, "");
   }, samplePath("empty.drawio"));
 
@@ -23,7 +27,10 @@ test("drawio-iframe-init: opening empty.drawio triggers init/load postMessage", 
 
   const messages = await handle.capturedMessages();
   const hasInitOrLoad = messages.some((m) => {
-    const parsed = typeof m === "string" ? JSON.parse(m) as Record<string, unknown> : m as Record<string, unknown>;
+    const parsed =
+      typeof m === "string"
+        ? (JSON.parse(m) as Record<string, unknown>)
+        : (m as Record<string, unknown>);
     return parsed["event"] === "init" || parsed["event"] === "load";
   });
   expect(hasInitOrLoad).toBe(true);

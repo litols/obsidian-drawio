@@ -3,7 +3,8 @@ import { describe, it, expect } from "vitest";
 import { deflateRaw } from "pako";
 import { readDrawioXml, writeDrawioXml } from "./drawio-xml";
 
-const MXGRAPH = '<mxGraphModel dx="800" dy="600" grid="1"><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
+const MXGRAPH =
+  '<mxGraphModel dx="800" dy="600" grid="1"><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel>';
 const MXFILE_PLAIN = `<mxfile><diagram id="test" name="Page-1">${MXGRAPH}</diagram></mxfile>`;
 
 describe("readDrawioXml", () => {

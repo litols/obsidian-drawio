@@ -148,13 +148,24 @@ describe("migrateSettings", () => {
   });
 
   describe("language の検証", () => {
-    it.each(["auto", "en", "ja", "zh", "de", "fr", "es", "pt", "ru", "ko", "pl", "nl", "it"] as const)(
-      "有効な language '%s' がそのまま採用される",
-      (language) => {
-        const result = migrateSettings({ drawio: { language } });
-        expect(result.language).toBe(language);
-      },
-    );
+    it.each([
+      "auto",
+      "en",
+      "ja",
+      "zh",
+      "de",
+      "fr",
+      "es",
+      "pt",
+      "ru",
+      "ko",
+      "pl",
+      "nl",
+      "it",
+    ] as const)("有効な language '%s' がそのまま採用される", (language) => {
+      const result = migrateSettings({ drawio: { language } });
+      expect(result.language).toBe(language);
+    });
 
     it("無効な language → デフォルト language を返す", () => {
       const result = migrateSettings({ drawio: { language: "xx" } });
@@ -184,7 +195,9 @@ describe("migrateSettings", () => {
     });
 
     it("非 string 混入は除外される", () => {
-      const result = migrateSettings({ drawio: { defaultLibraries: ["general", 42, null, "aws4"] } });
+      const result = migrateSettings({
+        drawio: { defaultLibraries: ["general", 42, null, "aws4"] },
+      });
       expect(result.defaultLibraries).toEqual(["general", "aws4"]);
     });
 

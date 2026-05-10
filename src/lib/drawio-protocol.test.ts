@@ -154,7 +154,9 @@ describe("DrawioInbound type guards", () => {
       expect(isInboundExport(rest)).toBe(false);
     });
     it("returns false when message.action is not export", () => {
-      expect(isInboundExport({ ...validExport, message: { action: "load", format: "png" } })).toBe(false);
+      expect(isInboundExport({ ...validExport, message: { action: "load", format: "png" } })).toBe(
+        false,
+      );
     });
     it.each(INVALID_INPUTS)("returns false for %o", (v) => {
       expect(isInboundExport(v)).toBe(false);

@@ -11,7 +11,11 @@ test("external-sync-reload: external write triggers reload banner", async () => 
 
   // empty.drawio を開く
   await window.evaluate((path) => {
-    const app = (window as unknown as { app?: { workspace?: { openLinkText?: (p: string, s: string) => void } } }).app;
+    const app = (
+      window as unknown as {
+        app?: { workspace?: { openLinkText?: (p: string, s: string) => void } };
+      }
+    ).app;
     app?.workspace?.openLinkText?.(path, "");
   }, samplePath("empty.drawio"));
 
@@ -34,7 +38,10 @@ test("external-sync-reload: external write triggers reload banner", async () => 
   // 再ロード後に新たな load event が capturedMessages に含まれることを確認
   const messages = await handle.capturedMessages();
   const hasLoad = messages.some((m) => {
-    const parsed = typeof m === "string" ? JSON.parse(m) as Record<string, unknown> : m as Record<string, unknown>;
+    const parsed =
+      typeof m === "string"
+        ? (JSON.parse(m) as Record<string, unknown>)
+        : (m as Record<string, unknown>);
     return parsed["event"] === "load";
   });
   expect(hasLoad).toBe(true);

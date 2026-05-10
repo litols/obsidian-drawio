@@ -199,7 +199,7 @@
   - 該当セクションが追加された README が手元で読める
   - _Requirements: 6.1, 6.2, 7.1, 7.2, 7.3_
 
-- [ ] 7.2 ローカルおよび CI でのフルパス検証
+- [x] 7.2 ローカルおよび CI でのフルパス検証
   - クリーン clone から `pnpm install` → `bash scripts/setup-obsidian.sh` → `pnpm build` → `pnpm e2e:setup` → `pnpm test` と `pnpm e2e` をローカル macOS で全て green まで通す
   - `pnpm test` / `pnpm e2e` 双方で全 spec が pass し、`pnpm e2e:cleanup` で `e2e-vault/.obsidian/` が初期状態に戻ることを確認
   - feature branch に push して GitHub Actions の `basic` / `e2e` 両 job が green になることを確認
@@ -215,3 +215,4 @@
 - 2.7: `external-watcher.ts` から `isDrawioFile` を export 公開、`isSelfWriteSuppressed` を新規 export 追加 (echo suppression の純粋判定部抽出)。本体振る舞いは不変、テスト容易性のための最小 surface 拡張のみ (Req 7.4 準拠)。
 - 3.3: drawio iframe の selector default を `'iframe[data-drawio]'` としているが、現行 `drawio-bridge.ts` の iframe には `data-drawio` 属性が付与されていない (sandbox のみ)。`getDrawioFrame(page, { selector: 'iframe[sandbox]' })` で override するか、task 5.x で実機検証時に既存実装に `data-drawio` 属性を付与する patch (drawio-embed-bridge spec への enhancement) を別途切り出す必要あり。
 - 5.x: 全 E2E spec で iframe selector を `'iframe[sandbox]'` に override 済。theme-follow は `test.skip` で骨格のみ (設定 UI セレクタ未確定)。external-sync-reload のバナー文言とリロードボタンセレクタは task 7.2 で実機確認しながら最終化。
+- 7.2: ローカル automatable パス (`pnpm install --frozen-lockfile`、lint、format:check、test 7 file / 250 pass、build、e2e:cleanup) を全て green で完走確認済。format 違反 10 ファイルは `pnpm format` で修正してコミット。**deferred 項目** — (a) `pnpm e2e:setup` / `pnpm e2e` のフル実機実行は theme-follow / external-sync-reload の UI セレクタ未確定のため、初回 dry run でセレクタを最終化する別 follow-up 作業が必要、(b) GitHub Actions CI の green 確認は repo push (ユーザ承認) が前提のため deferred。
