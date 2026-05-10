@@ -22,11 +22,7 @@ const requiredFiles = [
 ];
 
 /** Directories that must contain at least 1 file. */
-const requiredNonEmptyDirs = [
-  "dist/drawio/js",
-  "dist/drawio/styles",
-  "dist/drawio/images",
-];
+const requiredNonEmptyDirs = ["dist/drawio/js", "dist/drawio/styles", "dist/drawio/images"];
 
 async function exists(p) {
   try {

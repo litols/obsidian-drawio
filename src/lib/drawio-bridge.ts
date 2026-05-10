@@ -50,7 +50,14 @@ export interface DrawioBridge {
 
 // ─── Internal state machine ──────────────────────────────────────────────────
 
-type BridgeState = "idle" | "loading" | "bootstrapped" | "configuring" | "ready" | "error" | "disposed";
+type BridgeState =
+  | "idle"
+  | "loading"
+  | "bootstrapped"
+  | "configuring"
+  | "ready"
+  | "error"
+  | "disposed";
 
 /** Raw parsed message shape before discriminating by event/action */
 interface RawMessage {
@@ -143,7 +150,14 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
   }
 
   function disposeInternal(): void {
-    if (!mounted && state !== "error" && state !== "loading" && state !== "bootstrapped" && state !== "configuring") return;
+    if (
+      !mounted &&
+      state !== "error" &&
+      state !== "loading" &&
+      state !== "bootstrapped" &&
+      state !== "configuring"
+    )
+      return;
     clearTimeouts();
     if (messageHandler) {
       window.removeEventListener("message", messageHandler);
@@ -270,7 +284,8 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
               currentIframe.contentWindow.postMessage(
                 JSON.stringify({
                   action: "script",
-                  script: "setTimeout(function(){ try { App.main(); } catch (e) { console.error('App.main() failed', e); } }, 0);",
+                  script:
+                    "setTimeout(function(){ try { App.main(); } catch (e) { console.error('App.main() failed', e); } }, 0);",
                 }),
                 "*",
               );

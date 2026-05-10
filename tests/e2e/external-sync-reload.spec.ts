@@ -22,9 +22,11 @@ test("external-sync-reload: external write triggers reload banner", async () => 
       settings: { drawio?: { externalSync: { autoReloadWhenClean: boolean } } };
       saveSettings?: () => Promise<void>;
     }
-    const obsidianApp = (globalThis as unknown as {
-      app: { plugins: { plugins: Record<string, PluginShape> } };
-    }).app;
+    const obsidianApp = (
+      globalThis as unknown as {
+        app: { plugins: { plugins: Record<string, PluginShape> } };
+      }
+    ).app;
     const drawio = obsidianApp.plugins.plugins["obsidian-drawio"];
     if (drawio?.settings?.drawio?.externalSync) {
       drawio.settings.drawio.externalSync.autoReloadWhenClean = false;

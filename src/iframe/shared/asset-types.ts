@@ -16,8 +16,8 @@
 
 export interface DrawioResponseEntry {
   readonly mediaType: string; // e.g. "text/javascript", "image/png;base64"
-  readonly href: string;       // relative path, e.g. "js/main.js"
-  readonly source: string;     // utf-8 text or base64 string (see mediaType convention above)
+  readonly href: string; // relative path, e.g. "js/main.js"
+  readonly source: string; // utf-8 text or base64 string (see mediaType convention above)
 }
 
 export interface DrawioAssetBundle {

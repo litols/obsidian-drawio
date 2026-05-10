@@ -32,8 +32,7 @@ describe("buildBootstrapHtml", () => {
   it('戻り値に addEventListener("message") が含まれる', () => {
     const html = buildBootstrapHtml();
     const hasListener =
-      html.includes('addEventListener("message"') ||
-      html.includes("addEventListener('message'");
+      html.includes('addEventListener("message"') || html.includes("addEventListener('message'");
     expect(hasListener).toBe(true);
   });
 

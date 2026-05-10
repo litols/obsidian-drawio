@@ -1,8 +1,5 @@
 import type { DataAdapter } from "obsidian";
-import type {
-  DrawioAssetBundle,
-  DrawioResponseEntry,
-} from "../iframe/shared/asset-types";
+import type { DrawioAssetBundle, DrawioResponseEntry } from "../iframe/shared/asset-types";
 
 export type { DrawioAssetBundle, DrawioResponseEntry } from "../iframe/shared/asset-types";
 
@@ -104,10 +101,7 @@ export function createDrawioAssetLoader(
    * appJsSource の決定: app.min.js → app.js の順にフォールバック
    */
   async function resolveAppJsSource(dirPrefix: string): Promise<string> {
-    const candidates = [
-      `${dirPrefix}/js/app.min.js`,
-      `${dirPrefix}/js/app.js`,
-    ];
+    const candidates = [`${dirPrefix}/js/app.min.js`, `${dirPrefix}/js/app.js`];
     for (const candidate of candidates) {
       const exists = await adapter.exists(candidate);
       if (exists) {
@@ -134,9 +128,7 @@ export function createDrawioAssetLoader(
       const indexHtmlPath = `${dir}/index.html`;
       const indexExists = await adapter.exists(indexHtmlPath);
       if (!indexExists) {
-        throw new DrawioAssetLoadError(
-          `index.html not found at: ${indexHtmlPath}`,
-        );
+        throw new DrawioAssetLoadError(`index.html not found at: ${indexHtmlPath}`);
       }
 
       // ファイル一覧を再帰列挙
@@ -152,9 +144,7 @@ export function createDrawioAssetLoader(
           if (!mediaTypeInfo) return null; // MIME 不明ファイルはスキップ
 
           // href は drawioDir からの相対パス
-          const href = filePath.startsWith(dir + "/")
-            ? filePath.slice(dir.length + 1)
-            : filePath;
+          const href = filePath.startsWith(dir + "/") ? filePath.slice(dir.length + 1) : filePath;
 
           let source: string;
           if (mediaTypeInfo.isBinary) {

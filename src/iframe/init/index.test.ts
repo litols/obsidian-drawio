@@ -19,11 +19,7 @@ function makeEntry(href: string): DrawioResponseEntry {
 }
 
 /** Dispatch a synthetic MessageEvent on selfWindow with a given source. */
-function dispatchMessage(
-  selfWindow: Window,
-  data: unknown,
-  source: unknown,
-): void {
+function dispatchMessage(selfWindow: Window, data: unknown, source: unknown): void {
   const event = new MessageEvent("message", {
     data: typeof data === "string" ? data : JSON.stringify(data),
     source: source as MessageEventSource,
@@ -168,22 +164,14 @@ describe("bootstrapIframeInit", () => {
   // ─── other actions do not trigger configure handling ────────────────────────
 
   it("other actions such as {action:'script'} do NOT trigger installGlobals", () => {
-    dispatchMessage(
-      selfWindow,
-      { action: "script", script: "console.log('hello')" },
-      parentWindow,
-    );
+    dispatchMessage(selfWindow, { action: "script", script: "console.log('hello')" }, parentWindow);
 
     expect(installGlobalsSpy).not.toHaveBeenCalled();
     expect(createManagerSpy).not.toHaveBeenCalled();
   });
 
   it("other actions such as {action:'load'} do NOT trigger installGlobals", () => {
-    dispatchMessage(
-      selfWindow,
-      { action: "load", xml: "<mxGraphModel/>" },
-      parentWindow,
-    );
+    dispatchMessage(selfWindow, { action: "load", xml: "<mxGraphModel/>" }, parentWindow);
 
     expect(installGlobalsSpy).not.toHaveBeenCalled();
     expect(createManagerSpy).not.toHaveBeenCalled();

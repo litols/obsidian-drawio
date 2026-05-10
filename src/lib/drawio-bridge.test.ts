@@ -67,10 +67,7 @@ async function flushAsync(): Promise<void> {
 /**
  * Simulate a message from iframeContentWindow to parent window.
  */
-function simulateIframeMessage(
-  source: WindowProxy | null,
-  data: unknown,
-): void {
+function simulateIframeMessage(source: WindowProxy | null, data: unknown): void {
   window.dispatchEvent(
     new MessageEvent("message", {
       source: source as Window,
@@ -158,7 +155,9 @@ describe("createDrawioBridge", () => {
     // These are synchronous postMessage calls, so they happen immediately
     expect(postMessageSpy.mock.calls.length).toBeGreaterThanOrEqual(3);
 
-    const calls = postMessageSpy.mock.calls.map((c) => JSON.parse(c[0] as string) as Record<string, unknown>);
+    const calls = postMessageSpy.mock.calls.map(
+      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    );
 
     // Script injection call (init source)
     const scriptCalls = calls.filter((m) => m["action"] === "script");
@@ -191,7 +190,9 @@ describe("createDrawioBridge", () => {
     // Now simulate {event:"init"} from drawio webapp
     simulateIframeMessage(iframe.contentWindow, { event: "init" });
 
-    const calls = postMessageSpy.mock.calls.map((c) => JSON.parse(c[0] as string) as Record<string, unknown>);
+    const calls = postMessageSpy.mock.calls.map(
+      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    );
     const loadCall = calls.find((m) => m["action"] === "load");
     expect(loadCall).toBeDefined();
     expect(loadCall!["xml"]).toBe("<mxfile/>");
@@ -340,7 +341,11 @@ describe("createDrawioBridge", () => {
     expect(onAutosave).toHaveBeenCalledWith("<auto/>");
 
     // export
-    simulateIframeMessage(iframe.contentWindow, { event: "export", data: "base64data", format: "png" });
+    simulateIframeMessage(iframe.contentWindow, {
+      event: "export",
+      data: "base64data",
+      format: "png",
+    });
     expect(onExport).toHaveBeenCalledWith("base64data", "png");
 
     // exit
