@@ -50,7 +50,7 @@
   - _Requirements: 2.1_
   - _Boundary: drawio-xml_
 
-- [ ] 2.2 (P) drawio PNG zTXt mxfile チャンクの round trip テスト
+- [x] 2.2 (P) drawio PNG zTXt mxfile チャンクの round trip テスト
   - サンプル PNG (`e2e-vault/samples/sample.drawio.png`) を decode して mxfile を取得、再 encode してから decode しても同一 mxfile が得られることを検証
   - tEXt と zTXt の両方の経路、mxfile チャンク不在時のフォールバックを網羅
   - `pnpm test src/lib/drawio-formats/drawio-png.test.ts` で全ケース pass する
