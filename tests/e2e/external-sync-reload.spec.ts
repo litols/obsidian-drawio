@@ -15,6 +15,23 @@ test("external-sync-reload: external write triggers reload banner", async () => 
   const handle = getDrawioFrame(window);
   await handle.waitForReady(30_000);
 
+  // banner is only shown when autoReloadWhenClean=false OR the view is dirty.
+  // disable autoReload here so the banner is the expected outcome for a clean file.
+  await window.evaluate(async () => {
+    interface PluginShape {
+      settings: { drawio?: { externalSync: { autoReloadWhenClean: boolean } } };
+      saveSettings?: () => Promise<void>;
+    }
+    const obsidianApp = (globalThis as unknown as {
+      app: { plugins: { plugins: Record<string, PluginShape> } };
+    }).app;
+    const drawio = obsidianApp.plugins.plugins["obsidian-drawio"];
+    if (drawio?.settings?.drawio?.externalSync) {
+      drawio.settings.drawio.externalSync.autoReloadWhenClean = false;
+      await drawio.saveSettings?.();
+    }
+  });
+
   await writeExternal(samplePath("empty.drawio"), "<mxfile><diagram></diagram></mxfile>");
 
   const banner = window.getByText(/external change|reload/i);

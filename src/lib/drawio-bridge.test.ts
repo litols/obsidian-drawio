@@ -241,8 +241,8 @@ describe("createDrawioBridge", () => {
       simulateIframeMessage(iframe.contentWindow, { event: "iframe" });
     }
 
-    // Advance past the init timeout (5s) without receiving {event:"init"}
-    vi.advanceTimersByTime(6000);
+    // Advance past the init timeout (15s) without receiving {event:"init"}
+    vi.advanceTimersByTime(16000);
 
     // Error indicator should be in the container
     const errorEl = container.querySelector("[data-drawio-error]");

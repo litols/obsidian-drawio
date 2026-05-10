@@ -135,11 +135,9 @@ describe("createRequestManager", () => {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let revokeObjectURLSpy: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let createObjectURLSpy: any;
 
   beforeEach(() => {
-    createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-url");
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-url");
     revokeObjectURLSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
   });
 
@@ -149,16 +147,17 @@ describe("createRequestManager", () => {
 
   // ── setAttribute / setter for HTMLLinkElement ──────────────────────────
 
-  it("link.setAttribute('href', 'js/main.js') → blob/data URL", () => {
+  it("link.setAttribute('href', 'js/main.js') → blob/data URL (non-stylesheet path)", () => {
     const rm = createRequestManager(responses);
     rm.interceptRequests();
 
+    // js/main.js is text/javascript not text/css → falls through to blob URL
     const link = document.createElement("link");
     link.setAttribute("href", "js/main.js");
     expect(link.getAttribute("href")).toMatch(/^blob:|^data:/);
   });
 
-  it("link.href setter → blob/data URL", () => {
+  it("link.href setter → blob/data URL (non-stylesheet path)", () => {
     const rm = createRequestManager(responses);
     rm.interceptRequests();
 
@@ -176,6 +175,31 @@ describe("createRequestManager", () => {
     expect(link.getAttribute("href")).toBe("https://example.com/x.css");
   });
 
+  it("link[rel=stylesheet] CSS href → inline <style> injected, link neutralized (CSP workaround)", () => {
+    const cssResponses: readonly DrawioResponseEntry[] = [
+      makeTextEntry("styles/grapheditor.css", ".foo { color: red; }", "text/css"),
+    ];
+    const rm = createRequestManager(cssResponses);
+    rm.interceptRequests();
+
+    const beforeStyles = document.head.querySelectorAll("style").length;
+
+    const link = document.createElement("link");
+    link.setAttribute("rel", "stylesheet");
+    link.setAttribute("href", "styles/grapheditor.css");
+
+    // link href should NOT be set (no fetch). rel is dropped so the browser
+    // does not classify this element as a stylesheet to load.
+    expect(link.getAttribute("href")).toBeNull();
+    expect(link.getAttribute("rel")).toBe("");
+
+    // <style> with the CSS source must be appended to head
+    const afterStyles = document.head.querySelectorAll("style");
+    expect(afterStyles.length).toBe(beforeStyles + 1);
+    const last = afterStyles[afterStyles.length - 1] as HTMLStyleElement;
+    expect(last.textContent).toBe(".foo { color: red; }");
+  });
+
   // ── setAttribute / setter for HTMLScriptElement ────────────────────────
 
   it("script.setAttribute('src', 'js/foo.js') → blob/data URL", () => {
@@ -187,15 +211,14 @@ describe("createRequestManager", () => {
     expect(script.getAttribute("src")).toMatch(/^blob:|^data:/);
   });
 
-  it("script.src setter → blob/data URL", () => {
+  it("script.src setter → calls createObjectURL (resolution went through)", () => {
     const rm = createRequestManager(responses);
     rm.interceptRequests();
 
+    const createSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
     const script = document.createElement("script");
     script.src = "js/foo.js";
-    // jsdom may prepend origin; just check that the setter went through resolve
-    // (for relative URLs that match, createObjectURL should have been called)
-    expect(createObjectURLSpy).toHaveBeenCalled();
+    expect(createSpy).toHaveBeenCalled();
   });
 
   // ── setAttribute / setter for HTMLImageElement ─────────────────────────

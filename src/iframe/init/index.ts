@@ -35,6 +35,7 @@
 import type { DrawioResponseEntry } from "../shared/asset-types";
 import {
   createRequestManager,
+  rewriteCssUrlValue,
   type CreateRequestManager,
 } from "./request-manager";
 import { installFrameGlobals, type InstallFrameGlobals } from "./frame-globals";
@@ -139,6 +140,24 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
     // Intercept all DOM resource requests via Blob URL resolution.
     const manager = createManager(responses);
     manager.interceptRequests();
+
+    // Pre-inject all CSS responses as inline <style> elements.
+    //
+    // drawio's index.html declares <link rel="stylesheet"> for grapheditor.css
+    // and high-contrast.css, but our flow uses a data:text/html bootstrap so
+    // the static link tags from index.html are never created. Inject the CSS
+    // directly here BEFORE drawio's app.min.js runs so layouts render correctly.
+    //
+    // CSS url(...) references are rewritten to Blob URLs so font-face and
+    // background-image fetches resolve correctly.
+    const cssCache = new Map<string, string>();
+    for (const entry of responses) {
+      if (!entry.mediaType.startsWith("text/css")) continue;
+      const styleEl = document.createElement("style");
+      styleEl.dataset["drawioInjected"] = entry.href;
+      styleEl.textContent = rewriteCssUrlValue(entry.source, responses, cssCache);
+      document.head.appendChild(styleEl);
+    }
 
     // Expose dispose on window for tests / future use (best-effort).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

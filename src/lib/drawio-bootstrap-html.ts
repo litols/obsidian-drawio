@@ -11,11 +11,21 @@
  * Requirements: 1.1, 3.1
  */
 
-/** bootstrap HTML テンプレート文字列 (固定; ユーザ入力を含まない) */
+/** bootstrap HTML テンプレート文字列 (固定; ユーザ入力を含まない)
+ *
+ * meta http-equiv="Content-Security-Policy" は drawio webapp のサブリソース
+ * (CSS / 画像 / フォント / 動的 script) を blob:/data: 由来 URL から読み込ませるために必要。
+ * 親ウィンドウ (Obsidian) の CSP は style-src に blob: を含まないため、
+ * 自前の CSP を上書き設定して blob:/data: を許可する。
+ * 外部 HTTP ホストは default-src で禁止 (オフライン要件 4.2 に準拠)。
+ */
 const BOOTSTRAP_HTML = `<!DOCTYPE html>
-<html>
-<head></head>
-<body>
+<html style="height:100%;">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob: data:; style-src 'unsafe-inline' blob: data:; img-src blob: data:; font-src blob: data:; connect-src blob: data:; frame-src blob: data:; worker-src blob:;">
+<style>html,body{height:100%;margin:0;padding:0;overflow:hidden;}</style>
+</head>
+<body class="geEditor geClassic" style="height:100%;margin:0;">
 <script>
 (function () {
   // parent に iframe 準備完了を通知する

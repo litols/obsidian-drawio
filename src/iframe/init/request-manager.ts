@@ -119,8 +119,10 @@ export function resolveResourceUrl(
 /**
  * Rewrites any `url(...)` references inside a CSS property value string.
  * Only the URL fragment is replaced; surrounding quotes are preserved.
+ *
+ * Exported for use by iframe-init when pre-injecting CSS responses.
  */
-function rewriteCssUrlValue(
+export function rewriteCssUrlValue(
   value: string,
   responses: readonly DrawioResponseEntry[],
   cache: Map<string, string>,
@@ -134,6 +136,35 @@ function rewriteCssUrlValue(
     },
   );
 }
+
+// ─── CSS / Script inline injection (CSP workaround) ──────────────────────────
+
+/**
+ * Returns the response entry whose href matches the given URL (if any).
+ */
+function findResponseEntry(
+  url: string,
+  responses: readonly DrawioResponseEntry[],
+): DrawioResponseEntry | undefined {
+  return responses.find((r) => r.href === url);
+}
+
+/**
+ * Decodes the entry's source as UTF-8 text. For text mediaTypes the source is
+ * already UTF-8; for `;base64` mediaTypes it is base64 and must be decoded.
+ */
+function decodeEntryText(entry: DrawioResponseEntry): string {
+  if (entry.mediaType.endsWith(";base64")) {
+    return atob(entry.source);
+  }
+  return entry.source;
+}
+
+/**
+ * Tracks links that have already had their CSS injected as `<style>` so that
+ * setting href twice does not create duplicate styles.
+ */
+const styleInjected = new WeakSet<HTMLLinkElement>();
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
@@ -166,6 +197,10 @@ export const createRequestManager: CreateRequestManager = (
     intercepted = true;
 
     // ── HTMLLinkElement: setAttribute("href", ...) ────────────────────────
+    //
+    // CSP workaround: Obsidian's CSP forbids `style-src blob:`. So when a
+    // <link rel="stylesheet"> would point at a blob: URL we instead inject
+    // a sibling <style> element with the CSS text and neutralize the link.
     _origLinkSetAttr = HTMLLinkElement.prototype.setAttribute;
     const origLinkSetAttr = _origLinkSetAttr;
     HTMLLinkElement.prototype.setAttribute = function (
@@ -173,6 +208,26 @@ export const createRequestManager: CreateRequestManager = (
       value: string,
     ): void {
       if (qualifiedName === "href") {
+        // If this link is (or will be) a stylesheet AND we have inline CSS
+        // for the URL, inject as <style> and neutralize the link entirely.
+        const rel = this.rel || this.getAttribute("rel");
+        if (rel === "stylesheet" || rel === null) {
+          const entry = findResponseEntry(value, responses);
+          if (entry !== undefined && entry.mediaType.startsWith("text/css")) {
+            if (!styleInjected.has(this)) {
+              styleInjected.add(this);
+              const styleEl = document.createElement("style");
+              const cssText = rewriteCssUrlValue(decodeEntryText(entry), responses, cache);
+              styleEl.textContent = cssText;
+              document.head.appendChild(styleEl);
+            }
+            // Neutralize: drop rel so browser does not fetch as stylesheet
+            // (Obsidian CSP forbids both blob: and data: in style-src).
+            // We do NOT set href at all — leaving it unset prevents any fetch.
+            origLinkSetAttr.call(this, "rel", "");
+            return;
+          }
+        }
         origLinkSetAttr.call(this, qualifiedName, resolveResourceUrl(value, responses, cache));
       } else {
         origLinkSetAttr.call(this, qualifiedName, value);
@@ -186,6 +241,22 @@ export const createRequestManager: CreateRequestManager = (
       Object.defineProperty(HTMLLinkElement.prototype, "href", {
         ...linkHrefDescriptor,
         set(value: string) {
+          const rel = this.rel || this.getAttribute("rel");
+          if (rel === "stylesheet" || rel === null) {
+            const entry = findResponseEntry(value, responses);
+            if (entry !== undefined && entry.mediaType.startsWith("text/css")) {
+              if (!styleInjected.has(this)) {
+                styleInjected.add(this);
+                const styleEl = document.createElement("style");
+                const cssText = rewriteCssUrlValue(decodeEntryText(entry), responses, cache);
+                styleEl.textContent = cssText;
+                document.head.appendChild(styleEl);
+              }
+              // Drop rel; do not set href.
+              this.rel = "";
+              return;
+            }
+          }
           origLinkHrefSetter.call(this, resolveResourceUrl(value, responses, cache));
         },
       });
@@ -244,6 +315,11 @@ export const createRequestManager: CreateRequestManager = (
     }
 
     // ── HTMLElement.prototype.style → Proxy for CSS url(...) rewriting ─────
+    //
+    // CSSStyleDeclaration accessors and methods are sensitive to `this`. The
+    // Proxy must therefore route reads back to the real target (otherwise
+    // browsers throw "Illegal invocation"). Methods are bound to the target
+    // before being returned.
     const styleDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "style");
     if (styleDescriptor?.get) {
       const origStyleGetter = styleDescriptor.get;
@@ -252,6 +328,14 @@ export const createRequestManager: CreateRequestManager = (
         get(this: HTMLElement): CSSStyleDeclaration {
           const realStyle: CSSStyleDeclaration = origStyleGetter.call(this);
           return new Proxy(realStyle, {
+            get(target, prop) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const value = (target as any)[prop];
+              if (typeof value === "function") {
+                return value.bind(target);
+              }
+              return value;
+            },
             set(target, prop, value) {
               if (typeof value === "string" && value.includes("url(")) {
                 const rewritten = rewriteCssUrlValue(value, responses, cache);

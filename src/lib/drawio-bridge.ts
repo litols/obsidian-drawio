@@ -61,7 +61,10 @@ interface RawMessage {
 
 // Timeout constants (internal — NOT exposed via DrawioBridgeMountOptions)
 const TIMEOUT_IFRAME_EVENT_MS = 5_000;
-const TIMEOUT_INIT_EVENT_MS = 5_000;
+// drawio's app.min.js bootstrap (parsing 9MB script + CSS apply + EditorUi
+// construction) consistently takes > 5s on cold first-load in Obsidian.
+// Use 15s to keep comfortable margin while keeping total mount budget short.
+const TIMEOUT_INIT_EVENT_MS = 15_000;
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
@@ -243,9 +246,22 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
                 JSON.stringify({ action: "configure", responses, urlParams }),
                 "*",
               );
-              // 3. Inject drawio app.min.js
+              // 3. Inject drawio app.min.js (defines App / Editor / EditorUi / Graph / mx*)
               currentIframe.contentWindow.postMessage(
                 JSON.stringify({ action: "script", script: appJsSource }),
+                "*",
+              );
+              // 4. Trigger drawio's main entry — App.main() bootstraps the editor
+              //    and fires the embed-mode {event:'init'} postMessage to parent.
+              //    drawio's stock js/main.js wraps this in a window.load handler,
+              //    but in our injected-script flow window.load already fired, so
+              //    we invoke App.main() directly. Using setTimeout(0) defers
+              //    to after the app.min.js script element is fully evaluated.
+              currentIframe.contentWindow.postMessage(
+                JSON.stringify({
+                  action: "script",
+                  script: "setTimeout(function(){ try { App.main(); } catch (e) { console.error('App.main() failed', e); } }, 0);",
+                }),
                 "*",
               );
             }
