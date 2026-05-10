@@ -125,7 +125,7 @@
 
 ## 4. E2E Setup と Cleanup
 
-- [ ] 4.1 e2e-setup project の実装
+- [x] 4.1 e2e-setup project の実装
   - `tests/e2e-setup/setup.ts` で Obsidian launch helper + plugin install helper を呼び、初回起動時の trust author ダイアログを Playwright UI 操作で突破する
   - 突破後の `e2e-vault/.obsidian/workspace.json` 等を保存して以降の `e2e` project が再表示なしで起動できる状態を作る
   - `pnpm e2e:setup` 実行で、最終状態の workspace.json が生成されることを確認できる
