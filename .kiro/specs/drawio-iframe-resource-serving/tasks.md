@@ -9,7 +9,7 @@
   - 観測可能な完了条件: `pnpm build` 実行後に `dist/iframe-init.js`、`dist/drawio/LICENSE`、`dist/drawio/NOTICE`、`dist/drawio/CHANGES.md`、`dist/drawio/VERSION` がすべて存在する
   - _Requirements: 3.4, 4.1, 4.3_
 
-- [ ] 1.2 共有型の定義
+- [x] 1.2 共有型の定義
   - parent 側と iframe-init 側の双方から参照される `DrawioResponseEntry` (`mediaType` / `href` / `source`) と `DrawioAssetBundle` (`responses` / `indexHtml` / `appJsSource`) を共有モジュールに置く
   - バイナリ表現は `mediaType` の `;base64` サフィックスで識別する規約をコード上に明記する
   - 観測可能な完了条件: parent と iframe-init の両方からこれらの型が import され、TypeScript ビルドが strict mode で通る
