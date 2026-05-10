@@ -191,7 +191,7 @@
 
 ## 7. ドキュメント整備と最終統合検証
 
-- [ ] 7.1 README Testing セクションの追加
+- [x] 7.1 README Testing セクションの追加
   - Unit Test 実行手順 (`pnpm test` / `pnpm test:watch`) を明記
   - E2E 実行手順 (前提となる `/Applications/Obsidian.app` の存在、`vendor/drawio` submodule 初期化、`pnpm e2e:setup` → `pnpm e2e` の順序、`pnpm e2e --ui` での debug) を明記
   - サポート対象 OS (E2E は macOS のみ)、drawio webapp 内部操作の Out of scope、obsidian API 直依存ロジックを Unit 対象外として E2E に委譲する方針を記載

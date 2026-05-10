@@ -76,6 +76,59 @@ ln -s "$(pwd)/dist" "<your-vault>/.obsidian/plugins/obsidian-drawio"
 
 Then enable "Drawio" in Obsidian → Settings → Community plugins.
 
+## Testing
+
+### 前提条件
+
+- Node.js v22 以上 / pnpm
+- E2E は **macOS のみサポート** (Linux / Windows は将来対応)
+- E2E 実行には `/Applications/Obsidian.app` がローカルに存在することが前提
+  - `OBSIDIAN_APP_PATH` env で別パスへ上書き可能
+- `vendor/drawio` submodule が初期化済 (`git submodule update --init --recursive`)
+- プラグインのビルド成果物が `dist/` に生成されている (`pnpm build`)
+
+### Unit Test (vitest)
+
+```bash
+pnpm test         # 1 回実行 (CI 同等)
+pnpm test:watch   # 監視モード
+```
+
+`src/**/*.test.ts` パターンを対象。obsidian / electron / vendor/drawio に直接依存するロジック (`DrawioView`、`drawio-bridge` の postMessage 送受信、`SettingsTab` のレンダリング、`ExternalWatcher` の Vault イベント配線など) は Unit Test の対象外で、E2E でカバーする方針。
+
+### E2E (Playwright + Electron)
+
+初回セットアップ (Obsidian バイナリの抽出 + vault の trust 突破):
+
+```bash
+bash scripts/setup-obsidian.sh    # /Applications/Obsidian.app から app.asar を抽出
+pnpm build                         # main.js / manifest.json / styles.css / drawio/ を dist へ
+pnpm e2e:setup                     # 初回: trust author ダイアログ突破 + workspace.json 生成
+```
+
+E2E 実行:
+
+```bash
+pnpm e2e          # 通常実行
+pnpm e2e --ui     # Playwright Inspector / UI モードで debug
+pnpm e2e:cleanup  # workspace.json 等の実行時生成物を初期状態にリセット
+```
+
+### CI
+
+- PR と main push で `.github/workflows/ci.yml` が `basic` (ubuntu-latest) と `e2e` (macos-latest) の 2 job を並列実行
+- `OBSIDIAN_VERSION` env で固定 pin。Obsidian binary は `.dmg` から抽出しキャッシュ
+- 双方が green になることを main merge の条件にする運用 (リポジトリ管理者が GitHub UI の branch protection で `basic` / `e2e` を required check に指定)
+- E2E 失敗時は Playwright trace と screenshot を artifact として保存
+
+### スコープ外
+
+- drawio webapp 内部のパレット / 図形追加 / 編集ツールなど深いシナリオの自動化
+- Visual regression (スクリーンショット差分)
+- 100% コードカバレッジ目標
+- Linux / Windows での E2E 実行 (将来課題)
+- Community Plugin Registry への自動申請
+
 ## License
 
 This plugin's own source is under the project license (TBD). The bundled
