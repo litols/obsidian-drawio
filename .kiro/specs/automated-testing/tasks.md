@@ -178,7 +178,7 @@
 
 ## 6. CI Pipeline
 
-- [ ] 6.1 GitHub Actions workflow の実装
+- [x] 6.1 GitHub Actions workflow の実装
   - `.github/workflows/ci.yml` を新規作成し、`on: pull_request` と `on: push: branches: [main]` の両方で発火
   - jobs を 2 段並列構成 (`basic` on ubuntu-latest、`e2e` on macos-latest) とし、`needs` で連結しない (独立 Check になる)
   - basic job: `actions/checkout` (submodules: recursive) → `pnpm/action-setup` → `pnpm install` → `pnpm lint` → `pnpm format:check` → `pnpm test` → `pnpm build` の順
