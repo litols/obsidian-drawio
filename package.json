@@ -8,7 +8,12 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e:setup": "playwright test --project=e2e-setup",
+    "e2e:cleanup": "node tests/e2e-setup/cleanup.ts",
+    "e2e": "playwright test --project=e2e"
   },
   "dependencies": {
     "pako": "^2.1.0",
@@ -19,16 +24,20 @@
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@electron/asar": "^3.4.0",
+    "@playwright/test": "^1.55.0",
     "@types/node": "^24.12.2",
     "@types/pako": "^2.0.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^35.0.0",
     "obsidian": "^1.12.3",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
     "typescript": "~6.0.2",
     "vite": "^8.0.10",
-    "vite-plugin-static-copy": "^4.1.0"
+    "vite-plugin-static-copy": "^4.1.0",
+    "vitest": "^3.0.0"
   }
 }
