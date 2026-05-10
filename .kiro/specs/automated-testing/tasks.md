@@ -71,7 +71,7 @@
   - _Requirements: 2.4_
   - _Boundary: drawio-protocol_
 
-- [ ] 2.5 (P) settings の `migrateSettings` テスト
+- [x] 2.5 (P) settings の `migrateSettings` テスト
   - legacy トップレベル (`openDrawioSvg` / `openDrawioPng` / `preserveCompression`) を含む旧スキーマ入力が `drawio.*` 名前空間配下へ正しく移行することを検証
   - `null` / `undefined` / 空オブジェクト / 不正型などの境界入力に対するデフォルト値適用を網羅
   - `pnpm test src/lib/settings.test.ts` で全ケース pass する
