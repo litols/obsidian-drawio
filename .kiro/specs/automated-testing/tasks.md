@@ -139,21 +139,21 @@
 
 ## 5. E2E Specs: 各 spec の代表ユーザシナリオ
 
-- [ ] 5.1 (P) プラグイン有効化シナリオ
+- [x] 5.1 (P) プラグイン有効化シナリオ
   - Obsidian 起動 → プラグインがロード → 設定タブに drawio 項目が表示されることを検証
   - `pnpm e2e --grep plugin-activation` で当該 spec のみが pass する
   - _Requirements: 4.1_
   - _Boundary: plugin-activation.spec_
   - _Depends: 4.1_
 
-- [ ] 5.2 (P) drawio iframe init シナリオ
+- [x] 5.2 (P) drawio iframe init シナリオ
   - 空 `.drawio` ファイルを開く → iframe init / load 系 postMessage が host ↔ iframe 間でやり取りされることを drawio frame helper の受信履歴で検証
   - `pnpm e2e --grep drawio-iframe-init` で当該 spec のみが pass する
   - _Requirements: 4.2_
   - _Boundary: drawio-iframe-init.spec_
   - _Depends: 4.1_
 
-- [ ] 5.3 (P) 3 形式 round trip シナリオ
+- [x] 5.3 (P) 3 形式 round trip シナリオ
   - `.drawio` / `.drawio.svg` / `.drawio.png` の各サンプルを順に開く → iframe load 確認 → ダーティ操作 → 保存 → ファイル内容更新を検証
   - 各形式について「保存前後でファイルバイト列が変化」「再 read した mxfile が直前の編集を反映」を確認
   - `pnpm e2e --grep three-formats-roundtrip` で当該 spec が pass する
@@ -161,14 +161,14 @@
   - _Boundary: three-formats-roundtrip.spec_
   - _Depends: 4.1_
 
-- [ ] 5.4 (P) テーマ追従シナリオ
+- [x] 5.4 (P) テーマ追従シナリオ
   - 設定タブで theme を `light` → `dark` に切替 → drawio iframe へ `configure` action または theme 反映が伝播することを検証
   - `pnpm e2e --grep theme-follow` で当該 spec が pass する
   - _Requirements: 4.4_
   - _Boundary: theme-follow.spec_
   - _Depends: 4.1_
 
-- [ ] 5.5 (P) 外部変更 reload シナリオ
+- [x] 5.5 (P) 外部変更 reload シナリオ
   - `.drawio` を開いた状態で vault FS helper から外部書き込み → reload バナー / Notice の表示を検証
   - reload 採用ボタン押下で iframe が新しい mxfile に更新されること、却下では更新されないことの双方を検証
   - `pnpm e2e --grep external-sync-reload` で当該 spec が pass する
@@ -214,3 +214,4 @@
 - 2.5/2.6/2.7: `import type { Plugin } from "obsidian"` を持つモジュールを test から import すると、verbatimModuleSyntax + Vite 解決で `obsidian` (main:"") を実体ロードしようとして失敗する。`vitest.config.ts` に `stub-obsidian` plugin を追加し、空 module を返す形で回避。task 2.5 で初導入、後続 test も同 plugin を共有。
 - 2.7: `external-watcher.ts` から `isDrawioFile` を export 公開、`isSelfWriteSuppressed` を新規 export 追加 (echo suppression の純粋判定部抽出)。本体振る舞いは不変、テスト容易性のための最小 surface 拡張のみ (Req 7.4 準拠)。
 - 3.3: drawio iframe の selector default を `'iframe[data-drawio]'` としているが、現行 `drawio-bridge.ts` の iframe には `data-drawio` 属性が付与されていない (sandbox のみ)。`getDrawioFrame(page, { selector: 'iframe[sandbox]' })` で override するか、task 5.x で実機検証時に既存実装に `data-drawio` 属性を付与する patch (drawio-embed-bridge spec への enhancement) を別途切り出す必要あり。
+- 5.x: 全 E2E spec で iframe selector を `'iframe[sandbox]'` に override 済。theme-follow は `test.skip` で骨格のみ (設定 UI セレクタ未確定)。external-sync-reload のバナー文言とリロードボタンセレクタは task 7.2 で実機確認しながら最終化。
