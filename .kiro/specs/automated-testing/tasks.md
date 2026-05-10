@@ -78,13 +78,13 @@
   - _Requirements: 2.5_
   - _Boundary: settings_
 
-- [ ] 2.6 (P) theme-bridge `resolveBridgeTheme` テスト
+- [x] 2.6 (P) theme-bridge `resolveBridgeTheme` テスト
   - `auto` / `light` / `dark` / `kennedy` / `min` / `atlas` の各設定値と Obsidian 現在テーマの組み合わせに対する期待戻り値を検証
   - `pnpm test src/lib/theme-bridge.test.ts` で全ケース pass する
   - _Requirements: 2.6_
   - _Boundary: theme-bridge_
 
-- [ ] 2.7 (P) external-watcher 純粋判定部のテスト
+- [x] 2.7 (P) external-watcher 純粋判定部のテスト
   - echo suppression (recent self-write の TTL 比較) と debounce (mtime / 経過時間判定) の純粋関数を unit test で検証
   - `external-watcher.ts` 本体の API 変更が必要な場合、最小限の `__test__` 名前空間 export または既存 export の再構成のみに留め、`Plugin.events` への配線等の振る舞いは変更しない
   - `pnpm test src/lib/external-watcher.test.ts` で全ケース pass し、`src/main.ts` 側からの呼び出しが破綻していないことを `pnpm build` で確認できる
@@ -211,3 +211,5 @@
 
 - 1.4: e2e-vault/samples/sample.drawio.png は tEXt チャンクで mxfile を埋め込み (zTXt の代わり)。drawio-png reader は両対応のため fixture 機能としては問題ない。task 2.2 (PNG unit test) で zTXt 用テストデータはインラインで別途生成すること。
 - 2.1: `readDrawioXml` は入力が `<mxfile>` プレフィックスを持つと早期 return で `compressed: false` を返すため、`writeDrawioXml(xml, true)` で生成した値を再 read しても圧縮 flag が保持されない (現実装仕様)。drawio-file-io spec のロジック側の課題として upstream にフィードバックするか別 spec で fix を切り出す必要あり。本 spec ではテストで現挙動を pin down している。
+- 2.5/2.6/2.7: `import type { Plugin } from "obsidian"` を持つモジュールを test から import すると、verbatimModuleSyntax + Vite 解決で `obsidian` (main:"") を実体ロードしようとして失敗する。`vitest.config.ts` に `stub-obsidian` plugin を追加し、空 module を返す形で回避。task 2.5 で初導入、後続 test も同 plugin を共有。
+- 2.7: `external-watcher.ts` から `isDrawioFile` を export 公開、`isSelfWriteSuppressed` を新規 export 追加 (echo suppression の純粋判定部抽出)。本体振る舞いは不変、テスト容易性のための最小 surface 拡張のみ (Req 7.4 準拠)。
