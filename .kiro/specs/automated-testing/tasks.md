@@ -28,7 +28,7 @@
   - サンプルが Obsidian で開ける状態になっていることを手元で確認 (smoke check) し、ファイルバイト列を確定する
   - _Requirements: 3.4_
 
-- [ ] 1.5 Obsidian バイナリ抽出スクリプトの実装
+- [x] 1.5 Obsidian バイナリ抽出スクリプトの実装
   - `scripts/setup-obsidian.sh` で local モード (`/Applications/Obsidian.app` から抽出) と `--ci` モード (`gh release download` で `obsidianmd/obsidian-releases` から `.dmg` 取得 + 抽出) を分岐実装
   - `npx @electron/asar extract` で `app.asar` を `.obsidian-unpacked/` に展開、`obsidian.asar` も同階層へコピー
   - `gh` CLI 不在 / `Obsidian.app` 不在 / `OBSIDIAN_VERSION` 未設定 等の前提不足を検出して具体的不足項目を含めたエラーメッセージで非ゼロ終了する
