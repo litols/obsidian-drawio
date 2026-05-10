@@ -132,7 +132,7 @@
   - _Requirements: 3.1, 3.3, 6.4_
   - _Depends: 3.1, 3.2_
 
-- [ ] 4.2 e2e-cleanup スクリプトの実装
+- [x] 4.2 e2e-cleanup スクリプトの実装
   - `tests/e2e-setup/cleanup.ts` で `e2e-vault/.obsidian/workspace.json` 等の実行時生成物を初期状態にリセット
   - `pnpm e2e:cleanup` 実行後に `git status -- e2e-vault/.obsidian/` が clean となることを確認できる
   - _Requirements: 3.8_
