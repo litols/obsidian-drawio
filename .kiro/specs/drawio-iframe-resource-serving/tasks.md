@@ -69,7 +69,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 2.2, 3.1_
   - _Boundary: iframe-init entry_
 
-- [ ] 3.2 drawio-bridge 内部実装の差し替え
+- [x] 3.2 drawio-bridge 内部実装の差し替え
   - `mount` を `idle → loading → bootstrapped → configuring → ready / error → disposed` の状態機械として実装し、`iframe.src` に `data:text/html,<encodeURIComponent(buildBootstrapHtml())>` を設定する
   - bootstrap からの `{event:"iframe"}` を契機に in-iframe init source (本体バンドルへ `?raw` で取り込んだ文字列) を `{action:"script"}` で注入し、続けて `{action:"configure", responses, urlParams}` と drawio app source `{action:"script"}` を順次送出する
   - 受信メッセージは `event.source === iframe.contentWindow` で検証し、`event.origin` 文字列比較は行わない

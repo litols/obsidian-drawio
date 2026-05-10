@@ -1,6 +1,21 @@
+/**
+ * drawio-bridge
+ *
+ * Orchestrates the drawio iframe lifecycle using a data:text/html bootstrap
+ * with postMessage script injection (no app:// URL dependency).
+ *
+ * State machine: idle → loading → bootstrapped → configuring → ready | error → disposed
+ *
+ * Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.3, 6.1, 6.2, 6.3
+ */
+
 import type { App } from "obsidian";
 import type { DrawioInbound, DrawioOutbound } from "./drawio-protocol";
 import { buildDrawioUrl, type DrawioUrlOptions } from "./drawio-url";
+import { createDrawioAssetLoader } from "./drawio-asset-loader";
+import { buildBootstrapHtml } from "./drawio-bootstrap-html";
+
+// ─── Public types (frozen — do not change) ───────────────────────────────────
 
 // 'xmlpng' / 'xmlsvg' は mxfile XML を PNG/SVG バイナリに埋め込む drawio embed 標準 format (drawio-file-io 用)
 export type DrawioExportFormat = "png" | "svg" | "xml" | "pdf" | "xmlpng" | "xmlsvg";
@@ -33,7 +48,25 @@ export interface DrawioBridge {
   readonly isMounted: boolean;
 }
 
+// ─── Internal state machine ──────────────────────────────────────────────────
+
+type BridgeState = "idle" | "loading" | "bootstrapped" | "configuring" | "ready" | "error" | "disposed";
+
+/** Raw parsed message shape before discriminating by event/action */
+interface RawMessage {
+  readonly event?: string;
+  readonly action?: string;
+  readonly [key: string]: unknown;
+}
+
+// Timeout constants (internal — NOT exposed via DrawioBridgeMountOptions)
+const TIMEOUT_IFRAME_EVENT_MS = 5_000;
+const TIMEOUT_INIT_EVENT_MS = 5_000;
+
+// ─── Factory ─────────────────────────────────────────────────────────────────
+
 export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
+  let state: BridgeState = "idle";
   let iframe: HTMLIFrameElement | null = null;
   let messageHandler: ((event: MessageEvent) => void) | null = null;
   let callbacks: DrawioBridgeCallbacks = {};
@@ -41,8 +74,74 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
   let lastKnownXml = "";
   let mounted = false;
 
+  // Indicator elements rendered into container
+  let loadingIndicator: HTMLElement | null = null;
+  let errorIndicator: HTMLElement | null = null;
+
+  // Timeout handles
+  let iframeEventTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let initEventTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  // Asset loader instance (created fresh on each mount)
+  let assetLoaderDispose: (() => void) | null = null;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function clearTimeouts(): void {
+    if (iframeEventTimeoutId !== null) {
+      clearTimeout(iframeEventTimeoutId);
+      iframeEventTimeoutId = null;
+    }
+    if (initEventTimeoutId !== null) {
+      clearTimeout(initEventTimeoutId);
+      initEventTimeoutId = null;
+    }
+  }
+
+  function removeLoadingIndicator(): void {
+    if (loadingIndicator) {
+      loadingIndicator.remove();
+      loadingIndicator = null;
+    }
+  }
+
+  function renderError(container: HTMLElement): void {
+    removeLoadingIndicator();
+    const el = document.createElement("div");
+    el.setAttribute("data-drawio-error", "");
+    el.textContent = "drawio エディタの起動に失敗しました";
+    el.style.padding = "8px";
+    el.style.color = "var(--text-error, red)";
+    container.appendChild(el);
+    errorIndicator = el;
+  }
+
+  function transitionToError(container: HTMLElement | null, reason: string): void {
+    console.error("[DrawioBridge] Error:", reason);
+    state = "error";
+    mounted = false;
+    clearTimeouts();
+    if (messageHandler) {
+      window.removeEventListener("message", messageHandler);
+      messageHandler = null;
+    }
+    if (iframe) {
+      iframe.src = "about:blank";
+      iframe.remove();
+      iframe = null;
+    }
+    if (assetLoaderDispose) {
+      assetLoaderDispose();
+      assetLoaderDispose = null;
+    }
+    if (container) {
+      renderError(container);
+    }
+  }
+
   function disposeInternal(): void {
-    if (!mounted) return;
+    if (!mounted && state !== "error" && state !== "loading" && state !== "bootstrapped" && state !== "configuring") return;
+    clearTimeouts();
     if (messageHandler) {
       window.removeEventListener("message", messageHandler);
       messageHandler = null;
@@ -50,11 +149,21 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
     callbacks = {};
     initialXml = "";
     lastKnownXml = "";
+    removeLoadingIndicator();
+    if (errorIndicator) {
+      errorIndicator.remove();
+      errorIndicator = null;
+    }
     if (iframe) {
       iframe.src = "about:blank";
       iframe.remove();
       iframe = null;
     }
+    if (assetLoaderDispose) {
+      assetLoaderDispose();
+      assetLoaderDispose = null;
+    }
+    state = "disposed";
     mounted = false;
   }
 
@@ -70,17 +179,125 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
     iframe.contentWindow.postMessage(JSON.stringify(msg), "*");
   }
 
-  function handleMessage(event: MessageEvent): void {
-    if (!iframe || event.source !== iframe.contentWindow) return;
-    let msg: DrawioInbound;
-    try {
-      msg = JSON.parse(event.data as string) as DrawioInbound;
-    } catch {
-      console.warn("[DrawioBridge] Failed to parse message:", event.data);
-      return;
+  /**
+   * Extract URL params that buildDrawioUrl would add, as Record<string, string>.
+   * We call buildDrawioUrl("?", opts) then parse the result.
+   */
+  function extractUrlParams(opts?: DrawioBridgeMountOptions): Record<string, string> {
+    const raw = buildDrawioUrl("?", opts);
+    // raw is "??embed=1&proto=json&..."  or "??..."
+    const queryStart = raw.indexOf("?");
+    if (queryStart === -1) return {};
+    const query = raw.slice(queryStart + 1);
+    const params = new URLSearchParams(query);
+    const result: Record<string, string> = {};
+    for (const [key, value] of params.entries()) {
+      result[key] = value;
     }
+    return result;
+  }
+
+  /**
+   * Build the message handler for a specific mount session.
+   * Captures iframeRef, containerRef, and opts by closure.
+   */
+  function buildMessageHandler(
+    iframeRef: { current: HTMLIFrameElement | null },
+    containerRef: HTMLElement,
+    iframeInitSource: string,
+    appJsSource: string,
+    responses: ReadonlyArray<{ mediaType: string; href: string; source: string }>,
+    urlParams: Record<string, string>,
+  ): (event: MessageEvent) => void {
+    return function handleMessage(event: MessageEvent): void {
+      const currentIframe = iframeRef.current;
+      if (!currentIframe || event.source !== currentIframe.contentWindow) return;
+
+      let raw: RawMessage;
+      try {
+        raw = JSON.parse(event.data as string) as RawMessage;
+      } catch {
+        console.warn("[DrawioBridge] Failed to parse message:", event.data);
+        return;
+      }
+
+      // Discard action-only messages (from drawio webapp's internal postMessages)
+      if (!("event" in raw)) return;
+
+      switch (state) {
+        case "loading":
+          // Bootstrap iframe ready signal
+          if (raw.event === "iframe") {
+            state = "bootstrapped";
+            clearTimeout(iframeEventTimeoutId ?? undefined);
+            iframeEventTimeoutId = null;
+
+            // 1. Inject in-iframe init IIFE
+            if (currentIframe.contentWindow) {
+              currentIframe.contentWindow.postMessage(
+                JSON.stringify({ action: "script", script: iframeInitSource }),
+                "*",
+              );
+              // 2. Send configure with responses and urlParams
+              currentIframe.contentWindow.postMessage(
+                JSON.stringify({ action: "configure", responses, urlParams }),
+                "*",
+              );
+              // 3. Inject drawio app.min.js
+              currentIframe.contentWindow.postMessage(
+                JSON.stringify({ action: "script", script: appJsSource }),
+                "*",
+              );
+            }
+
+            state = "configuring";
+
+            // Set timeout for init event
+            initEventTimeoutId = setTimeout(() => {
+              transitionToError(containerRef, "Timeout waiting for drawio {event:'init'}");
+            }, TIMEOUT_INIT_EVENT_MS);
+          }
+          break;
+
+        case "bootstrapped":
+          // Intermediate state — shouldn't receive drawio events here
+          break;
+
+        case "configuring":
+          // Wait for drawio's init event
+          if (raw.event === "init") {
+            state = "ready";
+            clearTimeout(initEventTimeoutId ?? undefined);
+            initEventTimeoutId = null;
+            mounted = true;
+
+            removeLoadingIndicator();
+
+            // Send initial XML
+            if (currentIframe.contentWindow) {
+              currentIframe.contentWindow.postMessage(
+                JSON.stringify({ action: "load", xml: initialXml }),
+                "*",
+              );
+            }
+          }
+          break;
+
+        case "ready":
+          // Dispatch existing inbound event handling
+          dispatchInboundEvent(raw as unknown as DrawioInbound);
+          break;
+
+        default:
+          break;
+      }
+    };
+  }
+
+  function dispatchInboundEvent(msg: DrawioInbound): void {
     switch (msg.event) {
       case "init":
+        // In ready state, a second init is treated as a reload
         sendMessageInternal({ action: "load", xml: initialXml });
         break;
       case "load":
@@ -108,43 +325,100 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
     }
   }
 
+  // ── Public bridge object ──────────────────────────────────────────────────
+
   return {
     get isMounted(): boolean {
       return mounted;
     },
 
     mount(container: HTMLElement, opts?: DrawioBridgeMountOptions): void {
-      if (mounted) {
+      // If already mounted, dispose first (existing behavior)
+      if (mounted || state === "loading" || state === "bootstrapped" || state === "configuring") {
         disposeInternal();
       }
 
-      let basePath: string;
-      try {
-        const drawioPath = pluginDir ? `${pluginDir}/drawio/index.html` : "drawio/index.html";
-        basePath = app.vault.adapter.getResourcePath(drawioPath);
-      } catch (err) {
-        console.error("[DrawioBridge] Failed to get resource path:", err);
-        return;
-      }
-
-      const src = buildDrawioUrl(basePath, opts);
-      iframe = document.createElement("iframe");
-      iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-downloads");
-      iframe.setAttribute("data-drawio", "");
-      iframe.src = src;
-      iframe.style.width = "100%";
-      iframe.style.height = "100%";
-      iframe.style.border = "none";
-
+      state = "loading";
       callbacks = opts?.callbacks ?? {};
       initialXml = opts?.initialXml ?? "";
       lastKnownXml = initialXml;
 
-      messageHandler = handleMessage;
-      window.addEventListener("message", messageHandler);
+      // Render loading indicator
+      const loadingEl = document.createElement("div");
+      loadingEl.setAttribute("data-drawio-loading", "");
+      loadingEl.textContent = "drawio エディタを読み込み中...";
+      loadingEl.style.padding = "8px";
+      container.appendChild(loadingEl);
+      loadingIndicator = loadingEl;
 
-      container.appendChild(iframe);
-      mounted = true;
+      // Determine drawio asset directory
+      const drawioDir = pluginDir ? `${pluginDir}/drawio` : "drawio";
+      const iframeInitPath = pluginDir ? `${pluginDir}/iframe-init.js` : "iframe-init.js";
+
+      // Create asset loader
+      const loader = createDrawioAssetLoader(app.vault.adapter, drawioDir);
+      assetLoaderDispose = () => loader.dispose();
+
+      // Use a ref so the message handler closure can see the latest iframe
+      const iframeRef: { current: HTMLIFrameElement | null } = { current: null };
+
+      // Async mount sequence
+      void (async () => {
+        let iframeInitSource: string;
+        let appJsSource: string;
+        let responses: ReadonlyArray<{ mediaType: string; href: string; source: string }>;
+
+        try {
+          // Load all drawio assets
+          const bundle = await loader.loadAll();
+          appJsSource = bundle.appJsSource;
+          responses = bundle.responses;
+
+          // Read iframe-init IIFE source
+          iframeInitSource = await app.vault.adapter.read(iframeInitPath);
+        } catch (err) {
+          transitionToError(container, `Asset loading failed: ${String(err)}`);
+          return;
+        }
+
+        // If state changed while loading (e.g. dispose was called), abort
+        if (state !== "loading") return;
+
+        const urlParams = extractUrlParams(opts);
+        const bootstrapHtml = buildBootstrapHtml();
+
+        // Create iframe
+        const newIframe = document.createElement("iframe");
+        newIframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-downloads");
+        newIframe.setAttribute("data-drawio", "");
+        newIframe.style.width = "100%";
+        newIframe.style.height = "100%";
+        newIframe.style.border = "none";
+        newIframe.src = "data:text/html," + encodeURIComponent(bootstrapHtml);
+
+        iframe = newIframe;
+        iframeRef.current = newIframe;
+
+        // Install message handler before appending iframe to DOM
+        const handler = buildMessageHandler(
+          iframeRef,
+          container,
+          iframeInitSource,
+          appJsSource,
+          responses,
+          urlParams,
+        );
+        messageHandler = handler;
+        window.addEventListener("message", handler);
+
+        // Set timeout for {event:"iframe"} signal
+        iframeEventTimeoutId = setTimeout(() => {
+          transitionToError(container, "Timeout waiting for iframe bootstrap {event:'iframe'}");
+        }, TIMEOUT_IFRAME_EVENT_MS);
+
+        // Append iframe (triggers load of data: URL)
+        container.appendChild(newIframe);
+      })();
     },
 
     dispose(): void {
