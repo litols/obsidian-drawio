@@ -57,7 +57,7 @@
   - _Requirements: 2.2_
   - _Boundary: drawio-png_
 
-- [ ] 2.3 (P) drawio SVG content 属性 / `<mxfile>` 子要素の read-write テスト
+- [x] 2.3 (P) drawio SVG content 属性 / `<mxfile>` 子要素の read-write テスト
   - `content` 属性 (base64 mxfile) と `<mxfile>` 子要素の双方からの読み出しケースを検証
   - 書き戻し後の SVG が再 read で同等の mxfile を返すことを確認
   - `pnpm test src/lib/drawio-formats/drawio-svg.test.ts` で全ケース pass する
