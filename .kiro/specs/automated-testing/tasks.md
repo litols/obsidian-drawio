@@ -8,7 +8,7 @@
   - `pnpm install --frozen-lockfile` が成功し、`pnpm-lock.yaml` が更新された状態を確認できる
   - _Requirements: 1.1, 1.2, 6.3_
 
-- [ ] 1.2 vitest 設定の構築
+- [x] 1.2 vitest 設定の構築
   - `vitest.config.ts` を新規作成し、既存 `vite.config.ts` を `mergeConfig` で再利用する
   - `test.environment: 'node'`、`test.include: ['src/**/*.{test,spec}.ts']` を設定
   - `vite-plugin-static-copy` 等のビルド専用 plugin が test 実行時に副作用を出さないよう plugin 配列をフィルタする処理を含める
