@@ -14,6 +14,17 @@ export default mergeConfig(
           );
         },
       },
+      {
+        // obsidian パッケージは main:"" で Vite が解決できないため、test 実行時に空モジュールを返す
+        name: "stub-obsidian",
+        enforce: "pre",
+        resolveId(id) {
+          if (id === "obsidian") return "\0obsidian-stub";
+        },
+        load(id) {
+          if (id === "\0obsidian-stub") return "export default {}";
+        },
+      },
     ],
     test: {
       environment: "node",

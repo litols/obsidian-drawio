@@ -16,9 +16,17 @@ export interface ExternalWatcher {
 
 const DRAWIO_EXT = [".drawio", ".drawio.svg", ".drawio.png"];
 
-function isDrawioFile(path: string): boolean {
+export function isDrawioFile(path: string): boolean {
   const lower = path.toLowerCase();
   return DRAWIO_EXT.some((ext) => lower.endsWith(ext));
+}
+
+export function isSelfWriteSuppressed(
+  recentTs: number | undefined,
+  now: number,
+  echoSuppressionMs: number,
+): boolean {
+  return recentTs !== undefined && now - recentTs < echoSuppressionMs;
 }
 
 export function createExternalWatcher(
