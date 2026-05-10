@@ -21,7 +21,7 @@
   - `git status` 上で test artifact 系ファイルが untracked にならないことを確認できる
   - _Requirements: 3.1, 3.8, 4.6_
 
-- [ ] 1.4 フィクスチャ vault の構築
+- [x] 1.4 フィクスチャ vault の構築
   - `e2e-vault/.obsidian/` 配下に `community-plugins.json` (プラグイン id 事前登録)、`core-plugins.json`、`app.json` (trust 済状態)、`appearance.json` を配置
   - `e2e-vault/samples/` に `empty.drawio` (平文 mxfile)、`compressed.drawio` (pako 圧縮 mxfile)、`sample.drawio.svg` (`content` 属性付き)、`sample.drawio.png` (zTXt mxfile 付き) を作成して commit
   - `e2e-vault/README.md` にフィクスチャ更新ルールを記載
@@ -206,3 +206,7 @@
   - 既存 5 spec の振る舞いに影響が出ていないことを `pnpm build` の typecheck と E2E spec のすべての pass で担保 (Req 7.4)
   - _Requirements: 1.1, 3.1, 3.3, 5.1, 5.2, 6.1, 6.2, 7.4_
   - _Depends: 6.1, 7.1_
+
+## Implementation Notes
+
+- 1.4: e2e-vault/samples/sample.drawio.png は tEXt チャンクで mxfile を埋め込み (zTXt の代わり)。drawio-png reader は両対応のため fixture 機能としては問題ない。task 2.2 (PNG unit test) で zTXt 用テストデータはインラインで別途生成すること。
