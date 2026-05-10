@@ -47,6 +47,9 @@ interface ConfigureMessage {
   readonly action: "configure";
   readonly responses: readonly DrawioResponseEntry[];
   readonly urlParams: Record<string, string>;
+  /** drawio webapp の index.html 文字列。`<link rel=stylesheet>` を解析して、
+   *  本来の media 属性を尊重しつつ inline 注入するために使う。 */
+  readonly indexHtml?: string;
 }
 
 interface UnknownMessage {
@@ -132,7 +135,7 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
     }
     configured = true;
 
-    const { responses, urlParams } = msg as ConfigureMessage;
+    const { responses, urlParams, indexHtml } = msg as ConfigureMessage;
 
     // Install frame globals (mxLoadResources, mxscript, urlParams, etc.)
     installGlobals({ urlParams, loadScript });
@@ -141,22 +144,35 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
     const manager = createManager(responses);
     manager.interceptRequests();
 
-    // Pre-inject all CSS responses as inline <style> elements.
+    // Pre-inject the stylesheets that drawio's index.html declares via
+    // <link rel="stylesheet"> tags. Our flow uses a data:text/html bootstrap
+    // so those static <link> tags from index.html are never evaluated.
     //
-    // drawio's index.html declares <link rel="stylesheet"> for grapheditor.css
-    // and high-contrast.css, but our flow uses a data:text/html bootstrap so
-    // the static link tags from index.html are never created. Inject the CSS
-    // directly here BEFORE drawio's app.min.js runs so layouts render correctly.
+    // We honour each link's `media` attribute by wrapping the CSS body in
+    // `@media (...)`. This is critical for `styles/high-contrast.css`, which
+    // ships with `media="(forced-colors: active)"` and would otherwise force
+    // the editor into permanent high-contrast styling.
     //
-    // CSS url(...) references are rewritten to Blob URLs so font-face and
-    // background-image fetches resolve correctly.
-    const cssCache = new Map<string, string>();
-    for (const entry of responses) {
-      if (!entry.mediaType.startsWith("text/css")) continue;
-      const styleEl = document.createElement("style");
-      styleEl.dataset["drawioInjected"] = entry.href;
-      styleEl.textContent = rewriteCssUrlValue(entry.source, responses, cssCache);
-      document.head.appendChild(styleEl);
+    // CSS `url(...)` references are rewritten to Blob URLs so background
+    // images / @font-face resolve correctly.
+    if (typeof indexHtml === "string" && indexHtml.length > 0) {
+      const cssCache = new Map<string, string>();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(indexHtml, "text/html");
+      const links = Array.from(doc.querySelectorAll("link[rel='stylesheet']"));
+      for (const link of links) {
+        const href = link.getAttribute("href");
+        if (!href) continue;
+        const entry = responses.find((r) => r.href === href);
+        if (entry === undefined) continue;
+        if (!entry.mediaType.startsWith("text/css")) continue;
+        const media = link.getAttribute("media");
+        const css = rewriteCssUrlValue(entry.source, responses, cssCache);
+        const styleEl = document.createElement("style");
+        styleEl.dataset["drawioInjected"] = href;
+        styleEl.textContent = media ? `@media ${media} {\n${css}\n}` : css;
+        document.head.appendChild(styleEl);
+      }
     }
 
     // Expose dispose on window for tests / future use (best-effort).

@@ -25,5 +25,11 @@ export default defineConfig({
       testDir: "./tests/e2e",
       testMatch: /_manual\.spec\.ts$/,
     },
+    {
+      // 診断用 spec を任意で実行するためのプロジェクト
+      name: "e2e-debug",
+      testDir: "./tests/e2e",
+      testMatch: /_.*\.spec\.ts$/,
+    },
   ],
 });

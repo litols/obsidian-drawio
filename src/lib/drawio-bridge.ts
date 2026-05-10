@@ -211,6 +211,7 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
     appJsSource: string,
     responses: ReadonlyArray<{ mediaType: string; href: string; source: string }>,
     urlParams: Record<string, string>,
+    indexHtml: string,
   ): (event: MessageEvent) => void {
     return function handleMessage(event: MessageEvent): void {
       const currentIframe = iframeRef.current;
@@ -241,9 +242,18 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
                 JSON.stringify({ action: "script", script: iframeInitSource }),
                 "*",
               );
-              // 2. Send configure with responses and urlParams
+              // 2. Send configure with responses, urlParams, and indexHtml.
+              //    iframe-init parses indexHtml's <link rel=stylesheet> tags
+              //    and injects them as inline <style>, honouring each link's
+              //    `media` attribute (e.g. high-contrast.css is gated behind
+              //    `(forced-colors: active)`).
               currentIframe.contentWindow.postMessage(
-                JSON.stringify({ action: "configure", responses, urlParams }),
+                JSON.stringify({
+                  action: "configure",
+                  responses,
+                  urlParams,
+                  indexHtml,
+                }),
                 "*",
               );
               // 3. Inject drawio app.min.js (defines App / Editor / EditorUi / Graph / mx*)
@@ -383,12 +393,14 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
         let iframeInitSource: string;
         let appJsSource: string;
         let responses: ReadonlyArray<{ mediaType: string; href: string; source: string }>;
+        let indexHtml: string;
 
         try {
           // Load all drawio assets
           const bundle = await loader.loadAll();
           appJsSource = bundle.appJsSource;
           responses = bundle.responses;
+          indexHtml = bundle.indexHtml;
 
           // Read iframe-init IIFE source
           iframeInitSource = await app.vault.adapter.read(iframeInitPath);
@@ -423,6 +435,7 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
           appJsSource,
           responses,
           urlParams,
+          indexHtml,
         );
         messageHandler = handler;
         window.addEventListener("message", handler);
