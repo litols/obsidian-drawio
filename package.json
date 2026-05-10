@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",
-    "build": "tsc -b && vite build && vite build -c vite.iframe-init.config.ts",
+    "build": "tsc -b && vite build && vite build -c vite.iframe-init.config.ts && pnpm smoke:dist",
+    "smoke:dist": "node scripts/smoke-dist.mjs",
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",

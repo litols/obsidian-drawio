@@ -82,7 +82,7 @@
   - _Boundary: drawio-bridge_
 
 - [ ] 4. Validation: ビルド smoke と iframe 依存 E2E の緑化
-- [ ] 4.1 ビルド smoke と Apache-2.0 同梱検証
+- [x] 4.1 ビルド smoke と Apache-2.0 同梱検証
   - `pnpm build` 後に `dist/iframe-init.js`、`dist/drawio/index.html`、`dist/drawio/js/`、`dist/drawio/styles/`、`dist/drawio/images/`、`dist/drawio/LICENSE`、`dist/drawio/NOTICE`、`dist/drawio/CHANGES.md`、`dist/drawio/VERSION` の存在を assert する smoke スクリプトを追加し、CI から呼び出す
   - 観測可能な完了条件: 配布物に必要ファイルが欠ける状態で smoke を走らせるとビルドが赤くなる
   - _Depends: 1.1, 3.1, 3.2_
