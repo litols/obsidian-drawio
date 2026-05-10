@@ -16,7 +16,7 @@
   - _Requirements: 1.4, 3.2_
 
 - [ ] 2. Core: parent 側ローダ・bootstrap と in-iframe モジュール群
-- [ ] 2.1 (P) drawio-asset-loader 実装
+- [x] 2.1 (P) drawio-asset-loader 実装
   - `vault.adapter.list` で `dist/drawio/` 配下を再帰列挙し、`readBinary` / `read` でアセットを取得する
   - 拡張子に基づき `mediaType` を決定し、バイナリは base64 化して `;base64` サフィックスを付与、テキストは UTF-8 のまま格納する
   - `indexHtml` と `appJsSource` (drawio webapp 本体スクリプト) を `DrawioAssetBundle` の別フィールドで返し、`appJsSource` が空なら結果オブジェクトのエラーフィールドに伝搬する
