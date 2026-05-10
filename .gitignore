@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+## automated-testing artifacts
+.obsidian-unpacked/
+e2e-vault/.obsidian/workspace.json
+playwright-report/
+test-results/
+coverage/

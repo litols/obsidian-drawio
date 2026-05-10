@@ -15,7 +15,7 @@
   - 検証用の最小ダミーテストを 1 件配置し、`pnpm test` がそのテストのみ pass で完走することを確認できる (この検証用ダミーは 1.4 の手前で削除)
   - _Requirements: 1.3, 1.4, 1.5_
 
-- [ ] 1.3 test artifact 用 gitignore とリポジトリレイアウト整備
+- [x] 1.3 test artifact 用 gitignore とリポジトリレイアウト整備
   - `.gitignore` に `.obsidian-unpacked/`、`playwright-report/`、`test-results/`、`coverage/`、`e2e-vault/.obsidian/workspace.json` を追加
   - `tests/` ディレクトリ (`tests/e2e-setup/`、`tests/e2e/`、`tests/helpers/`) と `scripts/` ディレクトリの空構造を git に登録 (各サブディレクトリに `.gitkeep` 等)
   - `git status` 上で test artifact 系ファイルが untracked にならないことを確認できる
