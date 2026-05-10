@@ -45,7 +45,7 @@
   - _Boundary: iframe-init/request-manager_
   - _Depends: 1.2_
 
-- [ ] 2.4 (P) iframe-init/frame-globals 実装
+- [x] 2.4 (P) iframe-init/frame-globals 実装
   - `window.mxLoadResources = false`、`window.mxscript = loadScript` (RequestManager 連携)、`window.isLocalStorage = false`、`window.urlParams = <provided>` を `Object.defineProperty` で設定する
   - `document.cookie` を `value: ""` でスタブ化し、`localStorage` を no-op オブジェクト (`getItem` / `setItem` / `removeItem` が `console.warn` のみ) に置換する
   - 観測可能な完了条件: jsdom 環境のユニットテストで `window.mxLoadResources === false`、`typeof window.mxscript === 'function'`、`window.urlParams.embed === '1'` (供給値) が確認でき、`localStorage.setItem` 呼び出しで warn ログが出ることが確認できる
