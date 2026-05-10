@@ -100,7 +100,7 @@
   - _Requirements: 3.1, 3.7, 6.4_
   - _Boundary: obsidian-launch helper_
 
-- [ ] 3.2 (P) Plugin install helper の実装
+- [x] 3.2 (P) Plugin install helper の実装
   - `dist/main.js`、`dist/manifest.json`、`dist/styles.css`、`dist/drawio/` を `e2e-vault/.obsidian/plugins/obsidian-drawio/` へ symlink (or copy フォールバック) で配置
   - `dist/` 不在時は明示エラーで停止
   - 配置後に `e2e-vault/.obsidian/plugins/obsidian-drawio/manifest.json` が解決可能であることを確認できる
