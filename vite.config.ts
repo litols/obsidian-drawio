@@ -22,6 +22,17 @@ export default defineConfig({
           rename: { stripBase: 5 },
         },
         { src: "vendor/drawio/LICENSE", dest: "drawio", rename: { stripBase: 2 } },
+        { src: "vendor/drawio/VERSION", dest: "drawio", rename: { stripBase: 2 } },
+        {
+          src: "assets/drawio-distribution/NOTICE",
+          dest: "drawio",
+          rename: { stripBase: 2 },
+        },
+        {
+          src: "assets/drawio-distribution/CHANGES.md",
+          dest: "drawio",
+          rename: { stripBase: 2 },
+        },
       ],
     }),
   ],

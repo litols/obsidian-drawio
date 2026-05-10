@@ -1,0 +1,18 @@
+obsidian-drawio Plugin
+Copyright (c) 2024 litols
+
+This product includes software developed by JGraph Ltd (https://www.drawio.com/).
+
+draw.io (diagrams.net)
+Copyright (c) JGraph Ltd
+Licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+The full text of the Apache License, Version 2.0 is included in the LICENSE
+file distributed with this software.
+
+The draw.io webapp assets bundled under dist/drawio/ are reproduced from the
+official draw.io release (https://github.com/jgraph/drawio) and are subject
+to the terms of the Apache License, Version 2.0.
