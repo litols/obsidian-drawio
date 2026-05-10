@@ -41,5 +41,8 @@
     "vite": "^8.0.10",
     "vite-plugin-static-copy": "^4.1.0",
     "vitest": "^3.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["electron", "esbuild"]
   }
 }

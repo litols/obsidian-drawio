@@ -3,42 +3,93 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${REPO_ROOT}/.obsidian-unpacked"
-OBSIDIAN_APP_PATH="${OBSIDIAN_APP_PATH:-/Applications/Obsidian.app}"
+DEFAULT_APP_PATH="/Applications/Obsidian.app"
 
 usage() {
   echo "Usage: $0 [--ci]"
   echo ""
-  echo "  (no flags)  Extract from local Obsidian.app"
-  echo "  --ci        Download Obsidian DMG from GitHub Releases (requires OBSIDIAN_VERSION and gh CLI)"
+  echo "  (no flags)  Extract from installed Obsidian.app (default: ${DEFAULT_APP_PATH})"
+  echo "  --ci        Download Obsidian DMG via gh CLI to .obsidian-app/ and extract"
+  echo ""
+  echo "Env:"
+  echo "  OBSIDIAN_APP_PATH   Override path to Obsidian.app to extract from"
+  echo "  OBSIDIAN_VERSION    Obsidian release tag for --ci mode (default: 1.12.7)"
+  echo ""
+  echo "Note: E2E runtime state is isolated via --user-data-dir at launch time"
+  echo "      (see tests/helpers/obsidian-launch.ts), so the user's installed"
+  echo "      Obsidian state is not affected even when extracting from it."
   exit 1
-}
-
-check_gh() {
-  if ! command -v gh &>/dev/null; then
-    echo "error: gh CLI not found. Install via: brew install gh" >&2
-    exit 1
-  fi
 }
 
 extract_asar() {
   local app_path="$1"
   local asar_src="${app_path}/Contents/Resources/app.asar"
+  local obsidian_asar="${app_path}/Contents/Resources/obsidian.asar"
 
   if [[ ! -f "${asar_src}" ]]; then
     echo "error: app.asar not found at ${asar_src}" >&2
     exit 1
   fi
+  if [[ ! -f "${obsidian_asar}" ]]; then
+    echo "error: obsidian.asar not found at ${obsidian_asar}" >&2
+    exit 1
+  fi
 
-  echo "🔧 Extracting Obsidian app.asar to .obsidian-unpacked/"
-
+  echo "🔧 Extracting app.asar to ${OUT_DIR}"
   rm -rf "${OUT_DIR}"
   mkdir -p "${OUT_DIR}"
-
   npx --yes @electron/asar extract "${asar_src}" "${OUT_DIR}"
+  cp "${obsidian_asar}" "${OUT_DIR}/obsidian.asar"
 
-  cp "${asar_src}" "${OUT_DIR}/obsidian.asar"
+  local size
+  size="$(stat -f%z "${OUT_DIR}/obsidian.asar" 2>/dev/null || echo 0)"
+  if [[ "${size}" -lt 1000000 ]]; then
+    echo "warning: obsidian.asar is only ${size} bytes (expected >1MB)." >&2
+    echo "         The .dmg may ship a bootstrap stub. Use installed Obsidian.app instead." >&2
+  fi
+  echo "✅ Unpacked: ${OUT_DIR} (obsidian.asar: ${size} bytes)"
+}
 
-  echo "✅ Done: ${OUT_DIR}"
+download_obsidian_app() {
+  if ! command -v gh &>/dev/null; then
+    echo "error: gh CLI not found. Install via: brew install gh" >&2
+    exit 1
+  fi
+
+  local version="${OBSIDIAN_VERSION:-1.12.7}"
+  local dmg_dir="${REPO_ROOT}/.tmp/obsidian-dmg"
+  local app_dir="${REPO_ROOT}/.obsidian-app"
+  local app_path="${app_dir}/Obsidian.app"
+
+  rm -rf "${dmg_dir}"
+  mkdir -p "${dmg_dir}"
+
+  echo "⬇️  Downloading Obsidian v${version} DMG..."
+  gh release download -R obsidianmd/obsidian-releases "v${version}" \
+    --pattern "Obsidian-*.dmg" \
+    --dir "${dmg_dir}"
+
+  local dmg_file
+  dmg_file="$(ls "${dmg_dir}"/Obsidian-*.dmg | head -1)"
+
+  echo "💿 Mounting ${dmg_file}..."
+  local mount_point
+  mount_point="$(hdiutil attach "${dmg_file}" -nobrowse -readonly | grep -Eo '/Volumes/.*$' | head -1)"
+
+  if [[ ! -d "${mount_point}/Obsidian.app" ]]; then
+    hdiutil detach "${mount_point}" &>/dev/null || true
+    echo "error: Obsidian.app not found in mounted DMG at ${mount_point}" >&2
+    exit 1
+  fi
+
+  echo "📦 Copying Obsidian.app to ${app_path}"
+  rm -rf "${app_path}"
+  mkdir -p "${app_dir}"
+  cp -R "${mount_point}/Obsidian.app" "${app_path}"
+  hdiutil detach "${mount_point}"
+  rm -rf "${dmg_dir}"
+
+  echo "${app_path}"
 }
 
 CI_MODE=false
@@ -51,55 +102,15 @@ for arg in "$@"; do
 done
 
 if [[ "${CI_MODE}" == true ]]; then
-  if [[ -z "${OBSIDIAN_VERSION:-}" ]]; then
-    echo "error: --ci requires OBSIDIAN_VERSION env to be set. Example: OBSIDIAN_VERSION=1.7.7" >&2
-    exit 1
-  fi
-
-  check_gh
-
-  DMG_DIR="${REPO_ROOT}/.tmp/obsidian-dmg"
-  rm -rf "${DMG_DIR}"
-  mkdir -p "${DMG_DIR}"
-
-  echo "⬇️  Downloading Obsidian v${OBSIDIAN_VERSION} DMG..."
-  gh release download -R obsidianmd/obsidian-releases "v${OBSIDIAN_VERSION}" \
-    --pattern "Obsidian-*.dmg" \
-    --dir "${DMG_DIR}"
-
-  DMG_FILE="$(ls "${DMG_DIR}"/Obsidian-*.dmg | head -1)"
-  if [[ -z "${DMG_FILE}" ]]; then
-    echo "error: DMG file not found after download" >&2
-    exit 1
-  fi
-
-  echo "💿 Mounting ${DMG_FILE}..."
-  MOUNT_POINT="$(hdiutil attach "${DMG_FILE}" -nobrowse -readonly | awk '/\/Volumes\//{print $NF}')"
-
-  if [[ -z "${MOUNT_POINT}" ]]; then
-    echo "error: failed to mount DMG" >&2
-    exit 1
-  fi
-
-  APP_PATH="$(ls -d "${MOUNT_POINT}"/Obsidian.app 2>/dev/null || true)"
-  if [[ -z "${APP_PATH}" ]]; then
-    hdiutil detach "${MOUNT_POINT}" &>/dev/null || true
-    echo "error: Obsidian.app not found in mounted DMG at ${MOUNT_POINT}" >&2
-    exit 1
-  fi
-
-  extract_asar "${APP_PATH}"
-
-  echo "💿 Unmounting..."
-  hdiutil detach "${MOUNT_POINT}"
-
-  rm -rf "${DMG_DIR}"
-
+  app_path="$(download_obsidian_app)"
+  extract_asar "${app_path}"
 else
-  if [[ ! -d "${OBSIDIAN_APP_PATH}" ]]; then
-    echo "error: Obsidian.app not found at ${OBSIDIAN_APP_PATH}. Set OBSIDIAN_APP_PATH or install Obsidian." >&2
+  app_path="${OBSIDIAN_APP_PATH:-${DEFAULT_APP_PATH}}"
+  if [[ ! -d "${app_path}" ]]; then
+    echo "error: Obsidian.app not found at ${app_path}." >&2
+    echo "       Set OBSIDIAN_APP_PATH or run with --ci to download." >&2
     exit 1
   fi
-
-  extract_asar "${OBSIDIAN_APP_PATH}"
+  echo "🔗 Using ${app_path}"
+  extract_asar "${app_path}"
 fi

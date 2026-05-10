@@ -49,12 +49,11 @@ describe("readDrawioXml", () => {
       expect(written).toMatch(/<\/diagram><\/mxfile>$/);
     });
 
-    it("writeDrawioXml(xml, true) round trip: re-reading returns compressed: false due to mxfile prefix early return", () => {
-      // 実装仕様: <mxfile>で始まるものは startsWith で early return → compressed: false
-      // これは既知の振る舞い。圧縮フラグは write→read で保持されない
+    it("writeDrawioXml(xml, true) round trip: re-reading restores original xml with compressed: true", () => {
       const written = writeDrawioXml(MXGRAPH, true);
       const result = readDrawioXml(written);
-      expect(result.compressed).toBe(false);
+      expect(result.compressed).toBe(true);
+      expect(result.xml).toBe(MXGRAPH);
     });
 
     it("handles large mxGraphModel (10KB) write and re-read", () => {

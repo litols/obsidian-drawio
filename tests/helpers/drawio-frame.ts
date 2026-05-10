@@ -12,12 +12,20 @@ export interface DrawioFrameHandle {
   capturedMessages(): Promise<unknown[]>;
 }
 
-export function installMessageCapture(page: Page): Promise<void> {
-  return page.addInitScript(() => {
+export async function installMessageCapture(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     window.__drawioMessages = [];
     window.addEventListener("message", (e) => {
       window.__drawioMessages!.push(e.data);
     });
+  });
+  await page.evaluate(() => {
+    if (!window.__drawioMessages) {
+      window.__drawioMessages = [];
+      window.addEventListener("message", (e) => {
+        window.__drawioMessages!.push(e.data);
+      });
+    }
   });
 }
 

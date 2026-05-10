@@ -139,7 +139,7 @@ export class DrawioView extends FileView {
     container.style.padding = "0";
     container.style.height = "100%";
 
-    this.bridge = createDrawioBridge(this.app);
+    this.bridge = createDrawioBridge(this.app, this.plugin.manifest.dir);
     this.bridge.mount(container, {
       initialXml: result.xml,
       lang: resolveDrawioLanguage(this.plugin.settings.drawio?.language ?? "auto"),

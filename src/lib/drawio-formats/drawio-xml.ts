@@ -8,7 +8,7 @@ export interface ReadDrawioXmlResult {
 export function readDrawioXml(content: string): ReadDrawioXmlResult {
   const trimmed = content.trim();
 
-  if (trimmed.startsWith("<mxfile") || trimmed.startsWith("<mxGraphModel")) {
+  if (trimmed.startsWith("<mxGraphModel")) {
     return { xml: content, compressed: false };
   }
 
@@ -16,9 +16,9 @@ export function readDrawioXml(content: string): ReadDrawioXmlResult {
     const parser = new DOMParser();
     const doc = parser.parseFromString(content, "application/xml");
     const diagram = doc.querySelector("diagram");
-    if (diagram?.textContent) {
-      const base64 = diagram.textContent.trim();
-      const binary = atob(base64);
+    const inner = diagram?.textContent?.trim() ?? "";
+    if (inner.length > 0 && !inner.startsWith("<")) {
+      const binary = atob(inner);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       const inflated = inflateRaw(bytes);

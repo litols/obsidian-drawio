@@ -20,7 +20,7 @@ test.skip("theme-follow: switching theme propagates configure message to drawio 
     app?.workspace?.openLinkText?.(path, "");
   }, samplePath("empty.drawio"));
 
-  const handle = getDrawioFrame(window, { selector: "iframe[sandbox]" });
+  const handle = getDrawioFrame(window);
   await handle.waitForReady(30_000);
 
   // FIXME: Obsidian 設定画面のテーマ切替 UI セレクタを確認して実装する

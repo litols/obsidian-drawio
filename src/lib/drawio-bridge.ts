@@ -33,7 +33,7 @@ export interface DrawioBridge {
   readonly isMounted: boolean;
 }
 
-export function createDrawioBridge(app: App): DrawioBridge {
+export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
   let iframe: HTMLIFrameElement | null = null;
   let messageHandler: ((event: MessageEvent) => void) | null = null;
   let callbacks: DrawioBridgeCallbacks = {};
@@ -120,7 +120,8 @@ export function createDrawioBridge(app: App): DrawioBridge {
 
       let basePath: string;
       try {
-        basePath = app.vault.adapter.getResourcePath("drawio/index.html");
+        const drawioPath = pluginDir ? `${pluginDir}/drawio/index.html` : "drawio/index.html";
+        basePath = app.vault.adapter.getResourcePath(drawioPath);
       } catch (err) {
         console.error("[DrawioBridge] Failed to get resource path:", err);
         return;
@@ -129,6 +130,7 @@ export function createDrawioBridge(app: App): DrawioBridge {
       const src = buildDrawioUrl(basePath, opts);
       iframe = document.createElement("iframe");
       iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-downloads");
+      iframe.setAttribute("data-drawio", "");
       iframe.src = src;
       iframe.style.width = "100%";
       iframe.style.height = "100%";

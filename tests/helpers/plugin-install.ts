@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, symlinkSync, unlinkSync, cpSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, statSync, symlinkSync, rmSync, cpSync } from "node:fs";
 import { resolve } from "node:path";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
@@ -35,13 +35,19 @@ export function installPluginIntoVault(options?: InstallPluginOptions): { plugin
 
     const stat = lstatSync(dest, { throwIfNoEntry: false });
     if (stat !== undefined) {
-      unlinkSync(dest);
+      rmSync(dest, { recursive: true, force: true });
     }
 
-    try {
-      symlinkSync(src, dest);
-    } catch {
+    // ディレクトリは copy (Obsidian の app:// protocol handler が symlink を拒否するため)
+    const isDir = statSync(src).isDirectory();
+    if (isDir) {
       cpSync(src, dest, { recursive: true });
+    } else {
+      try {
+        symlinkSync(src, dest);
+      } catch {
+        cpSync(src, dest, { recursive: true });
+      }
     }
   }
 

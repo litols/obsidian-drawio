@@ -25,6 +25,9 @@ dist-ssr
 
 ## automated-testing artifacts
 .obsidian-unpacked/
+.obsidian-app/
+.obsidian-userdata/
+.tmp/
 e2e-vault/.obsidian/workspace.json
 e2e-vault/.obsidian/workspace.json.bak
 e2e-vault/.obsidian/plugins/
