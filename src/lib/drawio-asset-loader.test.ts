@@ -2,23 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DataAdapter } from "obsidian";
 
 // obsidian はスタブ済 (vitest.config.ts の stub-obsidian プラグイン)
-import {
-  createDrawioAssetLoader,
-  type DrawioAssetLoader,
-} from "./drawio-asset-loader";
+import { createDrawioAssetLoader, type DrawioAssetLoader } from "./drawio-asset-loader";
 
 // ------- ヘルパ: DataAdapter のモック構築 -------
 
 /** 再帰列挙をシミュレートするための仮想ファイルシステム */
 type FakeFs = Record<
   string,
-  | { type: "text"; content: string }
-  | { type: "binary"; content: Uint8Array }
+  { type: "text"; content: string } | { type: "binary"; content: Uint8Array }
 >;
 
-function buildMockAdapter(
-  fs: FakeFs,
-): DataAdapter {
+function buildMockAdapter(fs: FakeFs): DataAdapter {
   // list は指定ディレクトリの直下エントリを返す (files / folders)
   const listImpl = vi.fn(async (path: string) => {
     const prefix = path.endsWith("/") ? path : path + "/";
@@ -124,9 +118,7 @@ describe("createDrawioAssetLoader", () => {
     loader = createDrawioAssetLoader(adapter, DRAWIO_DIR);
 
     const bundle = await loader.loadAll();
-    const cssEntry = bundle.responses.find((r) =>
-      r.href.endsWith("styles/main.css"),
-    );
+    const cssEntry = bundle.responses.find((r) => r.href.endsWith("styles/main.css"));
     expect(cssEntry).toBeDefined();
     expect(cssEntry!.mediaType).toBe("text/css");
     // source は base64 でなくテキスト文字列
@@ -140,9 +132,7 @@ describe("createDrawioAssetLoader", () => {
     loader = createDrawioAssetLoader(adapter, DRAWIO_DIR);
 
     const bundle = await loader.loadAll();
-    const jsEntry = bundle.responses.find((r) =>
-      r.href.endsWith("js/app.min.js"),
-    );
+    const jsEntry = bundle.responses.find((r) => r.href.endsWith("js/app.min.js"));
     expect(jsEntry).toBeDefined();
     expect(jsEntry!.mediaType).toBe("text/javascript");
     expect(jsEntry!.source).toBe("// app.min.js source");
@@ -153,9 +143,7 @@ describe("createDrawioAssetLoader", () => {
     loader = createDrawioAssetLoader(adapter, DRAWIO_DIR);
 
     const bundle = await loader.loadAll();
-    const htmlEntry = bundle.responses.find((r) =>
-      r.href.endsWith("index.html"),
-    );
+    const htmlEntry = bundle.responses.find((r) => r.href.endsWith("index.html"));
     expect(htmlEntry).toBeDefined();
     expect(htmlEntry!.mediaType).toBe("text/html");
     expect(htmlEntry!.source).toBe("<html><body>index</body></html>");
@@ -167,9 +155,7 @@ describe("createDrawioAssetLoader", () => {
     loader = createDrawioAssetLoader(adapter, DRAWIO_DIR);
 
     const bundle = await loader.loadAll();
-    const pngEntry = bundle.responses.find((r) =>
-      r.href.endsWith("images/logo.png"),
-    );
+    const pngEntry = bundle.responses.find((r) => r.href.endsWith("images/logo.png"));
     expect(pngEntry).toBeDefined();
     expect(pngEntry!.mediaType).toBe("image/png;base64");
     // source は base64 文字列

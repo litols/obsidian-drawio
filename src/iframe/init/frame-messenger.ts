@@ -84,10 +84,7 @@ export function createIframeFrameMessenger<TIn = unknown, TOut = unknown>(
     try {
       parsed = JSON.parse(event.data as string) as TIn;
     } catch {
-      console.warn(
-        "[frame-messenger] Failed to JSON.parse incoming message data:",
-        event.data,
-      );
+      console.warn("[frame-messenger] Failed to JSON.parse incoming message data:", event.data);
       return;
     }
 

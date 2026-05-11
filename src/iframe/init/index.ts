@@ -128,9 +128,7 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
 
     if (configured) {
       // Idempotency: second configure is a no-op; warn and return.
-      console.warn(
-        "[drawio-frame] configure received more than once — ignoring duplicate",
-      );
+      console.warn("[drawio-frame] configure received more than once — ignoring duplicate");
       return;
     }
     configured = true;

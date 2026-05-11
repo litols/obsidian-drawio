@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   OBSIDIAN_VERSION: "1.7.7"
 
@@ -78,6 +82,69 @@ jobs:
 
       - name: E2E tests
         run: pnpm e2e
+
+      - name: Dump E2E failure context
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set +e
+          report=$(mktemp)
+          : > "$report"
+          {
+            echo '## E2E failure summary'
+            if [ -f playwright-report/results.json ]; then
+              echo ''
+              echo '### Failing specs (from results.json)'
+              echo ''
+              echo '```json'
+              node ./scripts/ci-dump-playwright-failures.mjs
+              echo '```'
+            else
+              echo '_(no playwright-report/results.json found)_'
+            fi
+            echo ''
+            echo '### Error contexts'
+            shopt -s globstar nullglob
+            found_ctx=0
+            for f in test-results/**/error-context.md; do
+              found_ctx=1
+              echo ""
+              echo "#### $f"
+              echo ""
+              echo '```'
+              cat "$f"
+              echo '```'
+            done
+            if [ "$found_ctx" = "0" ]; then
+              echo '_(no error-context.md files found)_'
+            fi
+            echo ''
+            echo '### test-results tree'
+            echo ''
+            echo '```'
+            ls -laR test-results/ 2>&1
+            echo '```'
+          } > "$report"
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "${PR_NUMBER}" ] && [ "${PR_NUMBER}" != "0" ]; then
+            gh_err=$(mktemp)
+            payload=$(mktemp)
+            jq -Rs '{body: .}' <"$report" >"$payload"
+            if ! gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+                  --method POST --input "$payload" 2>"$gh_err" >/dev/null; then
+              echo "::error title=PR comment failed::gh api response: $(tr '\n' ' ' <"$gh_err")"
+              cat "$gh_err"
+            fi
+          fi
+          # Mirror the report into the workflow log too so it's grep-able.
+          echo '----- E2E FAILURE REPORT -----'
+          cat "$report"
+          echo '----- END -----'
+          exit 0
 
       - name: Upload Playwright artifacts on failure
         if: failure()

@@ -80,11 +80,7 @@ const noOpStorage = {
  * catch the TypeError and emit a console.warn — this keeps the iframe load
  * alive rather than crashing.
  */
-function defineProp<T extends object>(
-  target: T,
-  key: PropertyKey,
-  value: unknown,
-): void {
+function defineProp<T extends object>(target: T, key: PropertyKey, value: unknown): void {
   try {
     Object.defineProperty(target, key, {
       value,
@@ -109,9 +105,7 @@ function defineProp<T extends object>(
  * Must be called before the drawio script is executed. Safe to call multiple
  * times — subsequent calls update the previously-defined property values.
  */
-export const installFrameGlobals: InstallFrameGlobals = (
-  input: InstallFrameGlobalsInput,
-): void => {
+export const installFrameGlobals: InstallFrameGlobals = (input: InstallFrameGlobalsInput): void => {
   const { urlParams, loadScript } = input;
 
   // ── drawio window globals ─────────────────────────────────────────────────

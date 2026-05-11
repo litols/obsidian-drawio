@@ -63,10 +63,7 @@ describe("createIframeFrameMessenger", () => {
     messenger.send({ foo: 1 });
 
     expect(parentWindow.postMessage).toHaveBeenCalledTimes(1);
-    expect(parentWindow.postMessage).toHaveBeenCalledWith(
-      JSON.stringify({ foo: 1 }),
-      "*",
-    );
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(JSON.stringify({ foo: 1 }), "*");
 
     messenger.destroy();
   });

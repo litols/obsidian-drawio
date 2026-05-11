@@ -21,11 +21,19 @@ if (typeof URL.revokeObjectURL === "undefined") {
 
 // ─── helper builders ───────────────────────────────────────────────────────
 
-function makeTextEntry(href: string, source: string, mediaType = "text/javascript"): DrawioResponseEntry {
+function makeTextEntry(
+  href: string,
+  source: string,
+  mediaType = "text/javascript",
+): DrawioResponseEntry {
   return { href, source, mediaType };
 }
 
-function makeBase64Entry(href: string, source: string, mediaType = "image/png;base64"): DrawioResponseEntry {
+function makeBase64Entry(
+  href: string,
+  source: string,
+  mediaType = "image/png;base64",
+): DrawioResponseEntry {
   return { href, source, mediaType };
 }
 
@@ -39,7 +47,7 @@ function base64ofLength(len: number): string {
 describe("resolveResourceUrl (unit)", () => {
   const responses: readonly DrawioResponseEntry[] = [
     makeTextEntry("js/main.js", "console.log('main')"),
-    makeBase64Entry("images/spin.gif", base64ofLength(512), "image/gif;base64"),   // < 1024 → data:
+    makeBase64Entry("images/spin.gif", base64ofLength(512), "image/gif;base64"), // < 1024 → data:
     makeBase64Entry("images/large.png", base64ofLength(2048), "image/png;base64"), // ≥ 1024 → blob:
   ];
 
@@ -94,7 +102,9 @@ describe("resolveResourceUrl (unit)", () => {
 
   it("resolves text entry to a blob: URL", () => {
     const cache = new Map<string, string>();
-    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-main-js");
+    const createObjectURLSpy = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:fake-main-js");
     const result = resolveResourceUrl("js/main.js", responses, cache);
     expect(result).toMatch(/^blob:/);
     expect(createObjectURLSpy).toHaveBeenCalledOnce();

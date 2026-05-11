@@ -28,9 +28,7 @@ export interface RequestManager {
   dispose(): void;
 }
 
-export type CreateRequestManager = (
-  responses: readonly DrawioResponseEntry[]
-) => RequestManager;
+export type CreateRequestManager = (responses: readonly DrawioResponseEntry[]) => RequestManager;
 
 // ─── URL passthrough predicates ──────────────────────────────────────────────
 
@@ -128,13 +126,10 @@ export function rewriteCssUrlValue(
   cache: Map<string, string>,
 ): string {
   // Match url("..."), url('...'), url(...)
-  return value.replace(
-    /url\(\s*(['"]?)([^)'"]+)\1\s*\)/g,
-    (_match, quote, rawUrl) => {
-      const resolved = resolveResourceUrl(rawUrl.trim(), responses, cache);
-      return `url(${quote}${resolved}${quote})`;
-    },
-  );
+  return value.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (_match, quote, rawUrl) => {
+    const resolved = resolveResourceUrl(rawUrl.trim(), responses, cache);
+    return `url(${quote}${resolved}${quote})`;
+  });
 }
 
 // ─── CSS / Script inline injection (CSP workaround) ──────────────────────────
@@ -203,10 +198,7 @@ export const createRequestManager: CreateRequestManager = (
     // a sibling <style> element with the CSS text and neutralize the link.
     _origLinkSetAttr = HTMLLinkElement.prototype.setAttribute;
     const origLinkSetAttr = _origLinkSetAttr;
-    HTMLLinkElement.prototype.setAttribute = function (
-      qualifiedName: string,
-      value: string,
-    ): void {
+    HTMLLinkElement.prototype.setAttribute = function (qualifiedName: string, value: string): void {
       if (qualifiedName === "href") {
         // If this link is (or will be) a stylesheet AND we have inline CSS
         // for the URL, inject as <style> and neutralize the link entirely.
