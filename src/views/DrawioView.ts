@@ -3,6 +3,7 @@ import { readDrawioFile, writeDrawioFile, type DrawioFormat } from "../lib/drawi
 import { createDrawioBridge, type DrawioBridge } from "../lib/drawio-bridge";
 import { applyLibraries } from "../lib/library-bridge";
 import { resolveDrawioLanguage } from "../lib/language-bridge";
+import { t } from "../lib/i18n";
 import type { ExternalChangeEvent } from "../lib/external-watcher";
 import { ExternalChangeBanner } from "./ExternalChangeBanner";
 import { DiffModal } from "./DiffModal";
@@ -39,7 +40,7 @@ export class DrawioView extends FileView {
   }
 
   getDisplayText(): string {
-    return this.file?.name ?? "Drawio";
+    return this.file?.name ?? t("view.drawio.displayText");
   }
 
   get isDirty(): boolean {
@@ -75,7 +76,7 @@ export class DrawioView extends FileView {
         this.plugin.externalWatcher?.registerSelfWrite(file.path);
       } catch (error) {
         console.error("[drawio-view] save failed:", error);
-        new Notice(`drawio: failed to save ${file.name}`);
+        new Notice(t("notice.saveFailedWithName", { name: file.name }));
       }
       return;
     }
@@ -125,7 +126,7 @@ export class DrawioView extends FileView {
       }
     } catch (error) {
       console.error("[drawio-view] export save failed:", error);
-      new Notice(`drawio: failed to save ${file.name}`);
+      new Notice(t("notice.saveFailedWithName", { name: file.name }));
     }
   }
 
@@ -219,7 +220,7 @@ export class DrawioView extends FileView {
       this.unmountBanner();
     } catch (err) {
       console.error("[drawio] banner reload failed:", err);
-      new Notice("ダイアグラムの再読み込みに失敗しました");
+      new Notice(t("notice.reloadFailed"));
     }
   }
 
@@ -242,13 +243,13 @@ export class DrawioView extends FileView {
     if (!this.file) return;
     const xml = this.getCurrentXml();
     if (xml == null) return;
-    if (!confirm("現在の編集内容を保存し、外部変更を破棄しますか?")) return;
+    if (!confirm(t("confirm.keepMine"))) return;
     try {
       await this.handleSave(this.file, xml);
       this.unmountBanner();
     } catch (err) {
       console.error("[drawio] banner keep-mine save failed:", err);
-      new Notice("保存に失敗しました");
+      new Notice(t("notice.saveFailed"));
     }
   }
 
@@ -261,7 +262,7 @@ export class DrawioView extends FileView {
     if (!this.file || ev.file.path !== this.file.path) return;
 
     if (ev.type === "delete") {
-      new Notice("ダイアグラムが削除されました");
+      new Notice(t("notice.diagramDeleted"));
       this.leaf.detach();
       return;
     }
@@ -282,7 +283,7 @@ export class DrawioView extends FileView {
             this.mountBanner(ev);
           } else {
             console.error("[drawio] reload failed:", err);
-            new Notice("ダイアグラムの読み込みに失敗しました");
+            new Notice(t("notice.loadFailed"));
           }
         }
       } else if (this.isDirty) {

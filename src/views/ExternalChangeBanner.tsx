@@ -1,4 +1,5 @@
 import * as React from "react";
+import { t } from "../lib/i18n";
 
 export interface ExternalChangeBannerProps {
   sourceHint?: string;
@@ -25,10 +26,14 @@ export const ExternalChangeBanner: React.FC<ExternalChangeBannerProps> = ({
         alignItems: "center",
       }}
     >
-      <span>{sourceHint ? `外部で更新されました (${sourceHint})` : "外部で更新されました"}</span>
-      <button onClick={onReload}>Reload</button>
-      <button onClick={onDiff}>Diff</button>
-      <button onClick={onKeepMine}>Keep mine</button>
+      <span>
+        {sourceHint
+          ? t("banner.externalUpdatedWithHint", { source: sourceHint })
+          : t("banner.externalUpdated")}
+      </span>
+      <button onClick={onReload}>{t("banner.reload")}</button>
+      <button onClick={onDiff}>{t("banner.diff")}</button>
+      <button onClick={onKeepMine}>{t("banner.keepMine")}</button>
     </div>
   );
 };
