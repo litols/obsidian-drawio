@@ -64,31 +64,38 @@ download_obsidian_app() {
   rm -rf "${dmg_dir}"
   mkdir -p "${dmg_dir}"
 
-  echo "⬇️  Downloading Obsidian v${version} DMG..."
+  # All progress output goes to stderr so the function's stdout is just the
+  # final app path that the caller captures via $(download_obsidian_app).
+  echo "⬇️  Downloading Obsidian v${version} DMG..." >&2
   gh release download -R obsidianmd/obsidian-releases "v${version}" \
     --pattern "Obsidian-*.dmg" \
-    --dir "${dmg_dir}"
+    --dir "${dmg_dir}" >&2
 
   local dmg_file
   dmg_file="$(ls "${dmg_dir}"/Obsidian-*.dmg | head -1)"
-
-  echo "💿 Mounting ${dmg_file}..."
-  local mount_point
-  mount_point="$(hdiutil attach "${dmg_file}" -nobrowse -readonly | grep -Eo '/Volumes/.*$' | head -1)"
-
-  if [[ ! -d "${mount_point}/Obsidian.app" ]]; then
-    hdiutil detach "${mount_point}" &>/dev/null || true
-    echo "error: Obsidian.app not found in mounted DMG at ${mount_point}" >&2
+  if [[ -z "${dmg_file}" || ! -f "${dmg_file}" ]]; then
+    echo "error: no Obsidian-*.dmg downloaded into ${dmg_dir}" >&2
     exit 1
   fi
 
-  echo "📦 Copying Obsidian.app to ${app_path}"
+  echo "💿 Mounting ${dmg_file}..." >&2
+  local mount_point
+  mount_point="$(hdiutil attach "${dmg_file}" -nobrowse -readonly | grep -Eo '/Volumes/.*$' | head -1)"
+
+  if [[ -z "${mount_point}" || ! -d "${mount_point}/Obsidian.app" ]]; then
+    [[ -n "${mount_point}" ]] && hdiutil detach "${mount_point}" &>/dev/null || true
+    echo "error: Obsidian.app not found in mounted DMG (mount_point='${mount_point}')" >&2
+    exit 1
+  fi
+
+  echo "📦 Copying Obsidian.app to ${app_path}" >&2
   rm -rf "${app_path}"
   mkdir -p "${app_dir}"
   cp -R "${mount_point}/Obsidian.app" "${app_path}"
-  hdiutil detach "${mount_point}"
+  hdiutil detach "${mount_point}" >&2
   rm -rf "${dmg_dir}"
 
+  # The single stdout line is the resolved app path.
   echo "${app_path}"
 }
 
