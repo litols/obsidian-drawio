@@ -87,5 +87,13 @@ export async function launchObsidianForVault(
   const app = await launchObsidian(options);
   const window = await app.firstWindow();
   await window.waitForLoadState("domcontentloaded");
+  // Obsidian populates `window.app` partway through bootstrap; without
+  // waiting for it, helpers that poke at workspace / plugins blow up with
+  // "Cannot read properties of undefined".
+  await window.waitForFunction(
+    () => typeof (globalThis as { app?: unknown }).app !== "undefined",
+    null,
+    { timeout: 30_000 },
+  );
   return { app, window };
 }
