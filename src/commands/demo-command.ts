@@ -1,5 +1,6 @@
 import { ItemView, Plugin, WorkspaceLeaf } from "obsidian";
 import { createDrawioBridge, type DrawioBridge } from "../lib/drawio-bridge";
+import { t } from "../lib/i18n";
 
 export const DEMO_VIEW_TYPE = "drawio-demo";
 
@@ -20,7 +21,7 @@ class DrawioDemoView extends ItemView {
   }
 
   getDisplayText(): string {
-    return "Drawio demo";
+    return t("view.demo.displayText");
   }
 
   async onOpen(): Promise<void> {
@@ -50,7 +51,7 @@ export function registerDemoCommand(plugin: Plugin): void {
 
   plugin.addCommand({
     id: "open-drawio-demo",
-    name: "Open drawio demo",
+    name: t("command.openDemo"),
     callback: async () => {
       const leaf = plugin.app.workspace.getLeaf(true);
       await leaf.setViewState({ type: DEMO_VIEW_TYPE, active: true });
