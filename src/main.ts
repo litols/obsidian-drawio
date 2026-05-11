@@ -14,6 +14,7 @@ import { DrawioSettingTab } from "./views/SettingsTab";
 import { DiagramSettingsModal } from "./views/DiagramSettingsModal";
 import { createExternalWatcher, type ExternalWatcher } from "./lib/external-watcher";
 import { createDrawioPluginApi, type DrawioPublicApi } from "./lib/plugin-api";
+import { initI18n, t } from "./lib/i18n";
 
 export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
@@ -26,6 +27,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
   async onload(): Promise<void> {
     try {
+      initI18n();
       const persisted = (await this.loadData()) as Record<string, unknown> | null;
       const drawioSettings = migrateSettings(persisted);
       this.settings = { drawio: drawioSettings };
@@ -72,16 +74,16 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
       this.addCommand({
         id: "edit-per-diagram-settings",
-        name: "drawio: 図の設定を編集",
+        name: t("command.editPerDiagramSettings"),
         callback: () => {
           const leaf = this.app.workspace.getMostRecentLeaf();
           if (!leaf || leaf.view?.getViewType() !== DRAWIO_VIEW_TYPE) {
-            new Notice("draw.io ファイルを開いた状態で実行してください");
+            new Notice(t("notice.openDrawioFileFirst"));
             return;
           }
           const view = leaf.view as DrawioView;
           if (!view.file) {
-            new Notice("draw.io ファイルが開かれていません");
+            new Notice(t("notice.noDrawioFileOpen"));
             return;
           }
           new DiagramSettingsModal(this.app, this, view.file, () => {
@@ -94,21 +96,21 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
       this.addCommand({
         id: "drawio-refresh-from-disk",
-        name: "Refresh diagram from disk",
+        name: t("command.refreshFromDisk"),
         callback: () => {
           const leaf = this.app.workspace.getMostRecentLeaf();
           if (!leaf || leaf.view?.getViewType() !== DRAWIO_VIEW_TYPE) {
-            new Notice("draw.io ファイルを開いた状態で実行してください");
+            new Notice(t("notice.openDrawioFileFirst"));
             return;
           }
           const view = leaf.view as DrawioView;
           if (!view.file) {
-            new Notice("draw.io ファイルが開かれていません");
+            new Notice(t("notice.noDrawioFileOpen"));
             return;
           }
           void view.reload(view.file, { force: true }).catch((err) => {
             console.error("[drawio] refresh-from-disk failed:", err);
-            new Notice("ダイアグラムの再読み込みに失敗しました");
+            new Notice(t("notice.reloadFailed"));
           });
         },
       });

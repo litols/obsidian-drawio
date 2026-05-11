@@ -2,6 +2,7 @@ import * as React from "react";
 import { App, PluginSettingTab } from "obsidian";
 import type ObsidianDrawioPlugin from "../main";
 import type { DrawioLanguage, DrawioSaveFormat, DrawioSettings } from "../lib/settings";
+import { t, type TranslationKey } from "../lib/i18n";
 
 interface SettingsAppProps {
   plugin: ObsidianDrawioPlugin;
@@ -34,12 +35,12 @@ const BOOLEAN_KEYS = [
   "openDrawioPng",
 ] as const;
 
-const BOOLEAN_LABELS: Record<(typeof BOOLEAN_KEYS)[number], string> = {
-  compression: "圧縮 (compression)",
-  math: "数式 (math)",
-  ribbonEnabled: "リボン (ribbonEnabled)",
-  openDrawioSvg: ".drawio.svg を draw.io で開く",
-  openDrawioPng: ".drawio.png を draw.io で開く",
+const BOOLEAN_LABEL_KEYS: Record<(typeof BOOLEAN_KEYS)[number], TranslationKey> = {
+  compression: "settings.bool.compression",
+  math: "settings.bool.math",
+  ribbonEnabled: "settings.bool.ribbonEnabled",
+  openDrawioSvg: "settings.bool.openDrawioSvg",
+  openDrawioPng: "settings.bool.openDrawioPng",
 };
 
 interface CustomLibrariesInputProps {
@@ -53,9 +54,11 @@ const CustomLibrariesInput: React.FC<CustomLibrariesInputProps> = ({ paths, onCh
 
   const validate = (input: string): string | null => {
     const trimmed = input.trim();
-    if (!trimmed) return "パスを入力してください";
-    if (/^https?:|^file:|^app:|:\/\//.test(trimmed)) return "外部 URL は使用できません";
-    if (trimmed.startsWith("/") || /^[A-Z]:[\\/]/i.test(trimmed)) return "絶対パスは使用できません";
+    if (!trimmed) return t("settings.customLibraries.err.empty");
+    if (/^https?:|^file:|^app:|:\/\//.test(trimmed))
+      return t("settings.customLibraries.err.externalUrl");
+    if (trimmed.startsWith("/") || /^[A-Z]:[\\/]/i.test(trimmed))
+      return t("settings.customLibraries.err.absolute");
     return null;
   };
 
@@ -72,23 +75,26 @@ const CustomLibrariesInput: React.FC<CustomLibrariesInputProps> = ({ paths, onCh
 
   return (
     <div>
-      <label>カスタムライブラリ (Vault 相対パス)</label>
+      <label>{t("settings.customLibraries.label")}</label>
       <div>
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="例: libraries/custom.xml"
+          placeholder={t("settings.customLibraries.placeholder")}
           onKeyDown={(e) => {
             if (e.key === "Enter") add();
           }}
         />
-        <button onClick={add}>追加</button>
+        <button onClick={add}>{t("settings.customLibraries.add")}</button>
       </div>
       {error && <span style={{ color: "red" }}>{error}</span>}
       <ul>
         {paths.map((p, i) => (
           <li key={i}>
-            {p} <button onClick={() => onChange(paths.filter((_, j) => j !== i))}>削除</button>
+            {p}{" "}
+            <button onClick={() => onChange(paths.filter((_, j) => j !== i))}>
+              {t("settings.customLibraries.remove")}
+            </button>
           </li>
         ))}
       </ul>
@@ -110,10 +116,7 @@ const SettingsApp: React.FC<SettingsAppProps> = ({ plugin }) => {
     <div className="drawio-settings-app">
       <h2>draw.io</h2>
 
-      <p style={{ opacity: 0.75, fontSize: "0.9em" }}>
-        テーマ・グリッド・内蔵ライブラリ一覧は draw.io エディタ内での操作がそのまま記憶されます。
-        ここでは draw.io 外から指定する必要のある項目だけを設定します。
-      </p>
+      <p style={{ opacity: 0.75, fontSize: "0.9em" }}>{t("settings.editorPrefHint")}</p>
 
       <CustomLibrariesInput
         paths={settings.customLibraries}
@@ -121,12 +124,12 @@ const SettingsApp: React.FC<SettingsAppProps> = ({ plugin }) => {
       />
 
       <div>
-        <label>保存形式</label>
+        <label>{t("settings.saveFormat")}</label>
         <select
           value={settings.defaultSaveFormat}
           onChange={(e) => void update("defaultSaveFormat", e.target.value as DrawioSaveFormat)}
         >
-          <option value="keep">keep (元の形式を維持)</option>
+          <option value="keep">{t("settings.saveFormat.keep")}</option>
           <option value="drawio">drawio</option>
         </select>
       </div>
@@ -139,13 +142,13 @@ const SettingsApp: React.FC<SettingsAppProps> = ({ plugin }) => {
               checked={settings[key]}
               onChange={(e) => void update(key, e.target.checked)}
             />
-            {BOOLEAN_LABELS[key]}
+            {t(BOOLEAN_LABEL_KEYS[key])}
           </label>
         </div>
       ))}
 
       <div>
-        <label>言語</label>
+        <label>{t("settings.language")}</label>
         <select
           value={settings.language}
           onChange={(e) => void update("language", e.target.value as DrawioLanguage)}
@@ -160,8 +163,8 @@ const SettingsApp: React.FC<SettingsAppProps> = ({ plugin }) => {
 
       <hr />
       <section data-spec="external-sync">
-        <h3>外部変更の同期設定 (external-sync spec により追加)</h3>
-        <p>このセクションは drawio-external-sync spec で本実装されます。</p>
+        <h3>{t("settings.externalSync.heading")}</h3>
+        <p>{t("settings.externalSync.body")}</p>
       </section>
     </div>
   );

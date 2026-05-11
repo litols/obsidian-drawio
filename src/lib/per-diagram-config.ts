@@ -1,6 +1,7 @@
 import type { Plugin, Vault } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import type { DrawioTheme } from "./settings";
+import { t } from "./i18n";
 
 export interface PerDiagramConfig {
   libraries?: string[];
@@ -67,7 +68,7 @@ export function registerPerDiagramConfigLifecycle(plugin: Plugin): void {
         }
       } catch (error) {
         console.error("[per-diagram-config] sidecar rename failed:", error);
-        new Notice(`drawio: failed to rename sidecar for ${oldPath}`);
+        new Notice(t("notice.sidecarRenameFailed", { path: oldPath }));
       }
     }),
   );

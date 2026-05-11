@@ -7,6 +7,7 @@ import {
 } from "../lib/per-diagram-config";
 import type { DrawioTheme } from "../lib/settings";
 import type ObsidianDrawioPlugin from "../main";
+import { t } from "../lib/i18n";
 
 const THEMES: DrawioTheme[] = ["auto", "light", "dark", "kennedy", "min", "atlas"];
 const LIBS = [
@@ -35,10 +36,10 @@ const PerDiagramForm: React.FC<FormProps> = ({ initial, onSave, onCancel }) => {
 
   return (
     <div className="drawio-per-diagram-form">
-      <h3>図ごとの設定</h3>
+      <h3>{t("perDiagram.heading")}</h3>
 
       <div>
-        <label>テーマ override（空欄でグローバル設定を使用）</label>
+        <label>{t("perDiagram.themeOverride")}</label>
         <select
           value={config.theme ?? ""}
           onChange={(e) =>
@@ -48,17 +49,17 @@ const PerDiagramForm: React.FC<FormProps> = ({ initial, onSave, onCancel }) => {
             })
           }
         >
-          <option value="">(グローバル設定を使用)</option>
-          {THEMES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          <option value="">{t("perDiagram.useGlobal")}</option>
+          {THEMES.map((th) => (
+            <option key={th} value={th}>
+              {th}
             </option>
           ))}
         </select>
       </div>
 
       <div>
-        <label>数式 (math)</label>
+        <label>{t("perDiagram.math")}</label>
         <select
           value={config.math === undefined ? "" : String(config.math)}
           onChange={(e) => {
@@ -66,14 +67,14 @@ const PerDiagramForm: React.FC<FormProps> = ({ initial, onSave, onCancel }) => {
             setConfig({ ...config, math: v === "" ? undefined : v === "true" });
           }}
         >
-          <option value="">(グローバル設定を使用)</option>
-          <option value="true">有効</option>
-          <option value="false">無効</option>
+          <option value="">{t("perDiagram.useGlobal")}</option>
+          <option value="true">{t("perDiagram.enabled")}</option>
+          <option value="false">{t("perDiagram.disabled")}</option>
         </select>
       </div>
 
       <div>
-        <label>グリッド (grid)</label>
+        <label>{t("perDiagram.grid")}</label>
         <select
           value={config.grid === undefined ? "" : String(config.grid)}
           onChange={(e) => {
@@ -81,21 +82,21 @@ const PerDiagramForm: React.FC<FormProps> = ({ initial, onSave, onCancel }) => {
             setConfig({ ...config, grid: v === "" ? undefined : v === "true" });
           }}
         >
-          <option value="">(グローバル設定を使用)</option>
-          <option value="true">有効</option>
-          <option value="false">無効</option>
+          <option value="">{t("perDiagram.useGlobal")}</option>
+          <option value="true">{t("perDiagram.enabled")}</option>
+          <option value="false">{t("perDiagram.disabled")}</option>
         </select>
       </div>
 
       <div>
-        <label>ライブラリ override</label>
+        <label>{t("perDiagram.librariesOverride")}</label>
         <label style={{ display: "block" }}>
           <input
             type="checkbox"
             checked={useGlobalLibraries}
             onChange={(e) => setConfig({ ...config, libraries: e.target.checked ? undefined : [] })}
           />
-          グローバル設定を使用
+          {t("perDiagram.useGlobalLibraries")}
         </label>
         {!useGlobalLibraries &&
           LIBS.map((lib) => (
@@ -115,8 +116,8 @@ const PerDiagramForm: React.FC<FormProps> = ({ initial, onSave, onCancel }) => {
       </div>
 
       <div>
-        <button onClick={() => onSave(config)}>保存</button>
-        <button onClick={onCancel}>キャンセル</button>
+        <button onClick={() => onSave(config)}>{t("common.save")}</button>
+        <button onClick={onCancel}>{t("common.cancel")}</button>
       </div>
     </div>
   );

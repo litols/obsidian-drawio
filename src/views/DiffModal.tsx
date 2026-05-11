@@ -1,6 +1,7 @@
 import * as React from "react";
 import { App, Modal } from "obsidian";
 import type ObsidianDrawioPlugin from "../main";
+import { t } from "../lib/i18n";
 
 interface DiffLine {
   kind: " " | "+" | "-";
@@ -41,7 +42,7 @@ const DiffView: React.FC<DiffViewProps> = ({ current, latest, onReload, onKeepMi
   const lineDiff = React.useMemo(() => simpleLineDiff(current, latest), [current, latest]);
   return (
     <div>
-      <h3>外部変更との差分</h3>
+      <h3>{t("diff.heading")}</h3>
       <pre style={{ maxHeight: "60vh", overflow: "auto", whiteSpace: "pre-wrap" }}>
         {lineDiff.map((d, idx) => (
           <div
@@ -67,7 +68,7 @@ const DiffView: React.FC<DiffViewProps> = ({ current, latest, onReload, onKeepMi
             onClose();
           }}
         >
-          Reload (外部を採用)
+          {t("diff.reloadExternal")}
         </button>
         <button
           onClick={() => {
@@ -75,9 +76,9 @@ const DiffView: React.FC<DiffViewProps> = ({ current, latest, onReload, onKeepMi
             onClose();
           }}
         >
-          Keep mine (自分を採用)
+          {t("diff.keepMine")}
         </button>
-        <button onClick={onClose}>キャンセル</button>
+        <button onClick={onClose}>{t("common.cancel")}</button>
       </div>
     </div>
   );
