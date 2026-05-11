@@ -5,12 +5,35 @@ import { applyLibraries } from "../lib/library-bridge";
 import { resolveDrawioLanguage } from "../lib/language-bridge";
 import { t } from "../lib/i18n";
 import type { ExternalChangeEvent } from "../lib/external-watcher";
+import type { DrawioInboundUserPrefChange } from "../lib/drawio-protocol";
+import type { DrawioTheme } from "../lib/settings";
 import { ExternalChangeBanner } from "./ExternalChangeBanner";
 import { DiffModal } from "./DiffModal";
 import type ObsidianDrawioPlugin from "../main";
 import * as React from "react";
 
 export const DRAWIO_VIEW_TYPE = "drawio";
+
+/**
+ * drawio から通知された UI バリアント (kennedy/atlas/min/sketch/dark) を
+ * プラグインの DrawioTheme へ正規化する。
+ * - dark → "dark"
+ * - sketch → 既存 theme が "auto"/"light"/"dark" のときは "auto" のまま、明示テーマ時は変更しない
+ *   (drawio v29 では sketch theme は別 UI として light/dark を内部で持つため割愛)
+ * - kennedy/atlas/min → 同名の DrawioTheme
+ */
+function resolveThemeFromUserPref(
+  uiVariant: "kennedy" | "atlas" | "min" | "sketch" | "dark" | undefined,
+  setTheme: "light" | "dark",
+): DrawioTheme | null {
+  if (uiVariant === "dark") return "dark";
+  if (uiVariant === "kennedy") return "kennedy";
+  if (uiVariant === "atlas") return "atlas";
+  if (uiVariant === "min") return "min";
+  // sketch / undefined: 既知の保存表現がないので setTheme のみ反映
+  if (uiVariant == null) return setTheme === "dark" ? "dark" : "light";
+  return null;
+}
 
 export class DrawioDirtyReloadError extends Error {
   constructor(message = "DrawioView is dirty; reload requires { force: true }") {
@@ -29,6 +52,11 @@ export class DrawioView extends FileView {
   private externalChangeRef: EventRef | null = null;
   private bannerContainer: HTMLElement | null = null;
   private bannerDispose: (() => void) | null = null;
+  // drawio 内操作によるグローバル設定書き込みのデバウンス用タイマ。
+  // 「More Shapes ダイアログ Apply」「View > Grid トグル」を連続で行ったときの
+  // saveData 連打を抑える。
+  private prefSaveTimerId: ReturnType<typeof setTimeout> | null = null;
+  private prefSaveDirty = false;
 
   constructor(leaf: WorkspaceLeaf, plugin: ObsidianDrawioPlugin) {
     super(leaf);
@@ -130,6 +158,54 @@ export class DrawioView extends FileView {
     }
   }
 
+  /**
+   * drawio エディタ内のユーザー操作 (More Shapes / View > Grid / View > Theme) を
+   * グローバル設定 (plugin.settings.drawio) に反映する。
+   * 保存自体は schedulePrefSave() で 400ms デバウンスして実行。
+   */
+  private handleUserPrefChange(msg: DrawioInboundUserPrefChange): void {
+    const drawio = this.plugin.settings.drawio;
+    if (!drawio) return;
+
+    if (msg.pref === "libraries") {
+      // drawio 内で操作できる内蔵ライブラリ集合のみ書き換える。
+      // customLibraries (Vault パス) は drawio 内 UI から追加できない領域なので保持。
+      drawio.defaultLibraries = [...msg.value.defaults];
+      this.schedulePrefSave();
+      return;
+    }
+
+    if (msg.pref === "theme") {
+      const next = resolveThemeFromUserPref(msg.value.uiVariant, msg.value.setTheme);
+      if (next != null && drawio.theme !== next) {
+        drawio.theme = next;
+        this.schedulePrefSave();
+      }
+      return;
+    }
+
+    if (msg.pref === "grid") {
+      if (drawio.grid !== msg.value) {
+        drawio.grid = msg.value;
+        this.schedulePrefSave();
+      }
+      return;
+    }
+  }
+
+  private schedulePrefSave(): void {
+    this.prefSaveDirty = true;
+    if (this.prefSaveTimerId !== null) {
+      clearTimeout(this.prefSaveTimerId);
+    }
+    this.prefSaveTimerId = setTimeout(() => {
+      this.prefSaveTimerId = null;
+      if (!this.prefSaveDirty) return;
+      this.prefSaveDirty = false;
+      void this.plugin.saveSettings();
+    }, 400);
+  }
+
   async onLoadFile(file: TFile): Promise<void> {
     const result = await readDrawioFile(file, this.app.vault);
     this.currentFormat = result.format;
@@ -165,6 +241,7 @@ export class DrawioView extends FileView {
         onExport: (data, format) => {
           void this.handleExportResult(file, data, format);
         },
+        onUserPrefChange: (msg) => this.handleUserPrefChange(msg),
       },
     });
     this._lastXml = result.xml;
@@ -295,6 +372,17 @@ export class DrawioView extends FileView {
     }
   }
 
+  private flushPrefSave(): void {
+    if (this.prefSaveTimerId !== null) {
+      clearTimeout(this.prefSaveTimerId);
+      this.prefSaveTimerId = null;
+    }
+    if (this.prefSaveDirty) {
+      this.prefSaveDirty = false;
+      void this.plugin.saveSettings();
+    }
+  }
+
   async onUnloadFile(_file: TFile): Promise<void> {
     if (this.externalChangeRef) {
       this.plugin.events.offref(this.externalChangeRef);
@@ -304,6 +392,7 @@ export class DrawioView extends FileView {
     if (this.bridge && this.plugin.themeBridge) {
       this.plugin.themeBridge.unregisterBridge(this.bridge);
     }
+    this.flushPrefSave();
     this.bridge?.dispose();
     this.bridge = null;
     this.currentFormat = "drawio";
@@ -318,6 +407,7 @@ export class DrawioView extends FileView {
       this.externalChangeRef = null;
     }
     this.unmountBanner();
+    this.flushPrefSave();
     this.bridge?.dispose();
     this.bridge = null;
     this._isDirty = false;

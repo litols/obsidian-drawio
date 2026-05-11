@@ -24,6 +24,7 @@ export type TranslationKey =
   | "settings.bool.ribbonEnabled"
   | "settings.bool.openDrawioSvg"
   | "settings.bool.openDrawioPng"
+  | "settings.editorPrefHint"
   | "settings.externalSync.heading"
   | "settings.externalSync.body"
   | "settings.customLibraries.label"
@@ -79,6 +80,8 @@ const EN: Record<TranslationKey, string> = {
   "settings.bool.ribbonEnabled": "Show ribbon icon",
   "settings.bool.openDrawioSvg": "Open .drawio.svg with draw.io",
   "settings.bool.openDrawioPng": "Open .drawio.png with draw.io",
+  "settings.editorPrefHint":
+    "Theme, grid, and the built-in library selection are remembered from what you do inside the draw.io editor. This tab only configures the items that must be set outside draw.io.",
   "settings.externalSync.heading": "External change sync (added by external-sync spec)",
   "settings.externalSync.body":
     "This section will be implemented by the drawio-external-sync spec.",
@@ -136,6 +139,8 @@ const JA: Record<TranslationKey, string> = {
   "settings.bool.ribbonEnabled": "リボン (ribbonEnabled)",
   "settings.bool.openDrawioSvg": ".drawio.svg を draw.io で開く",
   "settings.bool.openDrawioPng": ".drawio.png を draw.io で開く",
+  "settings.editorPrefHint":
+    "テーマ・グリッド・内蔵ライブラリ一覧は draw.io エディタ内での操作がそのまま記憶されます。ここでは draw.io 外から指定する必要のある項目だけを設定します。",
   "settings.externalSync.heading": "外部変更の同期設定 (external-sync spec により追加)",
   "settings.externalSync.body": "このセクションは drawio-external-sync spec で本実装されます。",
   "settings.customLibraries.label": "カスタムライブラリ (Vault 相対パス)",

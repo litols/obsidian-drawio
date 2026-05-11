@@ -43,6 +43,34 @@ export type DrawioInboundPrompt = {
   value?: string;
 };
 
+// drawio エディタ内でユーザーが直接変更したプリファレンスを親へ通知する非標準イベント。
+// iframe 側で drawio 内部メソッドを monkey-patch して発火させる (src/iframe/init/user-pref-hooks.ts)。
+export type DrawioInboundUserPrefChangeLibraries = {
+  event: "userPrefChange";
+  pref: "libraries";
+  value: { defaults: string[]; customs: string[] };
+};
+
+export type DrawioInboundUserPrefChangeTheme = {
+  event: "userPrefChange";
+  pref: "theme";
+  value: {
+    setTheme: "light" | "dark";
+    uiVariant?: "kennedy" | "atlas" | "min" | "sketch" | "dark";
+  };
+};
+
+export type DrawioInboundUserPrefChangeGrid = {
+  event: "userPrefChange";
+  pref: "grid";
+  value: boolean;
+};
+
+export type DrawioInboundUserPrefChange =
+  | DrawioInboundUserPrefChangeLibraries
+  | DrawioInboundUserPrefChangeTheme
+  | DrawioInboundUserPrefChangeGrid;
+
 export type DrawioInbound =
   | DrawioInboundInit
   | DrawioInboundLoad
@@ -51,7 +79,8 @@ export type DrawioInbound =
   | DrawioInboundExport
   | DrawioInboundExit
   | DrawioInboundDialog
-  | DrawioInboundPrompt;
+  | DrawioInboundPrompt
+  | DrawioInboundUserPrefChange;
 
 export type DrawioOutboundLoad = {
   action: "load";

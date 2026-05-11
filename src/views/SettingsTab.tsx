@@ -1,32 +1,13 @@
 import * as React from "react";
 import { App, PluginSettingTab } from "obsidian";
 import type ObsidianDrawioPlugin from "../main";
-import type {
-  DrawioLanguage,
-  DrawioSaveFormat,
-  DrawioSettings,
-  DrawioTheme,
-} from "../lib/settings";
+import type { DrawioLanguage, DrawioSaveFormat, DrawioSettings } from "../lib/settings";
 import { t, type TranslationKey } from "../lib/i18n";
 
 interface SettingsAppProps {
   plugin: ObsidianDrawioPlugin;
 }
 
-const DEFAULT_LIBRARIES = [
-  "general",
-  "basic",
-  "arrows3",
-  "flowchart",
-  "uml",
-  "er",
-  "bpmn",
-  "mockup",
-  "network",
-  "lean_mapping",
-];
-
-const THEMES: DrawioTheme[] = ["auto", "light", "dark", "kennedy", "min", "atlas"];
 const LANGUAGES: DrawioLanguage[] = [
   "auto",
   "en",
@@ -42,10 +23,13 @@ const LANGUAGES: DrawioLanguage[] = [
   "nl",
   "it",
 ];
+
+// drawio エディタ内では切り替えられないため設定タブで管理する真偽フラグ。
+// アイコンライブラリ集合 / テーマ / グリッド ON-OFF は drawio 側操作が source-of-truth に
+// なったため、ここから除去している (DrawioView の onUserPrefChange で自動保存)。
 const BOOLEAN_KEYS = [
   "compression",
   "math",
-  "grid",
   "ribbonEnabled",
   "openDrawioSvg",
   "openDrawioPng",
@@ -54,7 +38,6 @@ const BOOLEAN_KEYS = [
 const BOOLEAN_LABEL_KEYS: Record<(typeof BOOLEAN_KEYS)[number], TranslationKey> = {
   compression: "settings.bool.compression",
   math: "settings.bool.math",
-  grid: "settings.bool.grid",
   ribbonEnabled: "settings.bool.ribbonEnabled",
   openDrawioSvg: "settings.bool.openDrawioSvg",
   openDrawioPng: "settings.bool.openDrawioPng",
@@ -133,38 +116,7 @@ const SettingsApp: React.FC<SettingsAppProps> = ({ plugin }) => {
     <div className="drawio-settings-app">
       <h2>draw.io</h2>
 
-      <div>
-        <label>{t("settings.theme")}</label>
-        <select
-          value={settings.theme}
-          onChange={(e) => void update("theme", e.target.value as DrawioTheme)}
-        >
-          {THEMES.map((th) => (
-            <option key={th} value={th}>
-              {th}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label>{t("settings.defaultLibraries")}</label>
-        {DEFAULT_LIBRARIES.map((lib) => (
-          <label key={lib} style={{ display: "block" }}>
-            <input
-              type="checkbox"
-              checked={settings.defaultLibraries.includes(lib)}
-              onChange={(e) => {
-                const next = e.target.checked
-                  ? [...settings.defaultLibraries, lib]
-                  : settings.defaultLibraries.filter((l) => l !== lib);
-                void update("defaultLibraries", next);
-              }}
-            />
-            {lib}
-          </label>
-        ))}
-      </div>
+      <p style={{ opacity: 0.75, fontSize: "0.9em" }}>{t("settings.editorPrefHint")}</p>
 
       <CustomLibrariesInput
         paths={settings.customLibraries}
