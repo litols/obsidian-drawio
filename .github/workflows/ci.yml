@@ -131,8 +131,12 @@ jobs:
           } > "$report"
           cat "$report" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "${PR_NUMBER}" ] && [ "${PR_NUMBER}" != "0" ]; then
-            gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
-              -f body@"$report" || echo "::warning::failed to post PR comment with failure summary"
+            gh_err=$(mktemp)
+            if ! gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+                  --method POST -f body@"$report" 2>"$gh_err" >/dev/null; then
+              echo "::error title=PR comment failed::gh api response: $(tr '\n' ' ' <"$gh_err")"
+              cat "$gh_err"
+            fi
           fi
           # Mirror the report into the workflow log too so it's grep-able.
           echo '----- E2E FAILURE REPORT -----'
