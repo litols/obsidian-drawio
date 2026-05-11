@@ -179,8 +179,7 @@ let currentLocale: Locale = "en";
 
 export function detectObsidianLocale(): Locale {
   try {
-    const raw =
-      typeof window !== "undefined" ? window.localStorage.getItem("language") : null;
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem("language") : null;
     return raw === "ja" ? "ja" : "en";
   } catch {
     return "en";
