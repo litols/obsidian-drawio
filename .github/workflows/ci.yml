@@ -79,9 +79,15 @@ jobs:
       - name: E2E tests
         run: pnpm e2e
 
-      - name: Dump E2E failure context to job summary
-        if: failure()
+      - name: Dump E2E failure context to job summary & PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        shell: bash
         run: |
+          report=$(mktemp)
           {
             echo '## E2E failure summary'
             if [ -f playwright-report/results.json ]; then
@@ -107,7 +113,9 @@ jobs:
             echo ''
             echo '### Error contexts'
             shopt -s globstar nullglob
+            found_ctx=0
             for f in test-results/**/error-context.md; do
+              found_ctx=1
               echo ""
               echo "#### $f"
               echo ""
@@ -115,13 +123,20 @@ jobs:
               cat "$f"
               echo '```'
             done
+            if [ "$found_ctx" = "0" ]; then
+              echo '_(no error-context.md files found)_'
+            fi
             echo ''
             echo '### test-results tree'
             echo ''
             echo '```'
             ls -laR test-results/ 2>&1 || true
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          } > "$report"
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          # Also post as a PR comment so it's readable without artifact download.
+          gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            -f body="$(cat "$report")" >/dev/null
 
       - name: Upload Playwright artifacts on failure
         if: failure()
