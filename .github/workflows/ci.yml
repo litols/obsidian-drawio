@@ -79,6 +79,50 @@ jobs:
       - name: E2E tests
         run: pnpm e2e
 
+      - name: Dump E2E failure context to job summary
+        if: failure()
+        run: |
+          {
+            echo '## E2E failure summary'
+            if [ -f playwright-report/results.json ]; then
+              echo ''
+              echo '### Failing specs (from results.json)'
+              echo ''
+              echo '```json'
+              node -e "const r=require('./playwright-report/results.json');
+                const out=[];
+                const walk=(s)=>{(s.suites||[]).forEach(walk);(s.specs||[]).forEach(sp=>{
+                  sp.tests.forEach(t=>t.results.forEach(res=>{
+                    if(res.status!=='passed'){
+                      out.push({title:sp.title,file:sp.file,status:res.status,duration:res.duration,errors:res.errors,stdout:(res.stdout||[]).slice(0,20),stderr:(res.stderr||[]).slice(0,20)});
+                    }
+                  }))
+                })};
+                walk(r);
+                console.log(JSON.stringify(out,null,2));" || true
+              echo '```'
+            else
+              echo '_(no playwright-report/results.json found)_'
+            fi
+            echo ''
+            echo '### Error contexts'
+            shopt -s globstar nullglob
+            for f in test-results/**/error-context.md; do
+              echo ""
+              echo "#### $f"
+              echo ""
+              echo '```'
+              cat "$f"
+              echo '```'
+            done
+            echo ''
+            echo '### test-results tree'
+            echo ''
+            echo '```'
+            ls -laR test-results/ 2>&1 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Playwright artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
