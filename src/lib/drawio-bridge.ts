@@ -10,7 +10,7 @@
  */
 
 import type { App } from "obsidian";
-import type { DrawioInbound, DrawioOutbound } from "./drawio-protocol";
+import type { DrawioInbound, DrawioInboundUserPrefChange, DrawioOutbound } from "./drawio-protocol";
 import { buildDrawioUrl, type DrawioUrlOptions } from "./drawio-url";
 import { createDrawioAssetLoader } from "./drawio-asset-loader";
 import { buildBootstrapHtml } from "./drawio-bootstrap-html";
@@ -28,6 +28,9 @@ export interface DrawioBridgeCallbacks {
   onAutosave?: (xml: string) => void;
   onExport?: (data: string, format: string) => void;
   onExit?: (modified?: boolean) => void;
+  // drawio エディタ内でユーザーが操作したプリファレンス (ライブラリ / テーマ / グリッド)
+  // を反映するためのコールバック。詳細は drawio-protocol.ts の DrawioInboundUserPrefChange。
+  onUserPrefChange?: (msg: DrawioInboundUserPrefChange) => void;
 }
 
 export interface DrawioBridgeMountOptions extends DrawioUrlOptions {
@@ -362,6 +365,9 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
         break;
       case "prompt":
         console.warn("[DrawioBridge] prompt event (unhandled):", msg);
+        break;
+      case "userPrefChange":
+        callbacks.onUserPrefChange?.(msg);
         break;
     }
   }

@@ -40,6 +40,7 @@ import {
 } from "./request-manager";
 import { installFrameGlobals, type InstallFrameGlobals } from "./frame-globals";
 import { createIframeFrameMessenger } from "./frame-messenger";
+import { installUserPrefHooks } from "./user-pref-hooks";
 
 // ─── Message shapes ───────────────────────────────────────────────────────────
 
@@ -178,6 +179,14 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
     (selfWindow as any).__drawioFrameDispose = (): void => {
       manager.dispose();
     };
+
+    // drawio エディタ内でのユーザー操作 (ライブラリ / テーマ / グリッド) を親へ通知。
+    // app.min.js 評価後に EditorUi が現れるのを待ち受けてから monkey-patch を貼る。
+    try {
+      installUserPrefHooks({ parentWindow, hostWindow: selfWindow });
+    } catch (err) {
+      console.warn("[drawio-frame] installUserPrefHooks failed:", err);
+    }
 
     console.debug("[drawio-frame] configured");
   });
