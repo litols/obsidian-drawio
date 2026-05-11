@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   OBSIDIAN_VERSION: "1.7.7"
 
@@ -79,15 +83,17 @@ jobs:
       - name: E2E tests
         run: pnpm e2e
 
-      - name: Dump E2E failure context to job summary & PR
-        if: failure() && github.event_name == 'pull_request'
+      - name: Dump E2E failure context
+        if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         shell: bash
         run: |
+          set +e
           report=$(mktemp)
+          : > "$report"
           {
             echo '## E2E failure summary'
             if [ -f playwright-report/results.json ]; then
@@ -95,17 +101,7 @@ jobs:
               echo '### Failing specs (from results.json)'
               echo ''
               echo '```json'
-              node -e "const r=require('./playwright-report/results.json');
-                const out=[];
-                const walk=(s)=>{(s.suites||[]).forEach(walk);(s.specs||[]).forEach(sp=>{
-                  sp.tests.forEach(t=>t.results.forEach(res=>{
-                    if(res.status!=='passed'){
-                      out.push({title:sp.title,file:sp.file,status:res.status,duration:res.duration,errors:res.errors,stdout:(res.stdout||[]).slice(0,20),stderr:(res.stderr||[]).slice(0,20)});
-                    }
-                  }))
-                })};
-                walk(r);
-                console.log(JSON.stringify(out,null,2));" || true
+              node ./scripts/ci-dump-playwright-failures.mjs
               echo '```'
             else
               echo '_(no playwright-report/results.json found)_'
@@ -130,13 +126,19 @@ jobs:
             echo '### test-results tree'
             echo ''
             echo '```'
-            ls -laR test-results/ 2>&1 || true
+            ls -laR test-results/ 2>&1
             echo '```'
           } > "$report"
           cat "$report" >> "$GITHUB_STEP_SUMMARY"
-          # Also post as a PR comment so it's readable without artifact download.
-          gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
-            -f body="$(cat "$report")" >/dev/null
+          if [ -n "${PR_NUMBER}" ] && [ "${PR_NUMBER}" != "0" ]; then
+            gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+              -f body@"$report" || echo "::warning::failed to post PR comment with failure summary"
+          fi
+          # Mirror the report into the workflow log too so it's grep-able.
+          echo '----- E2E FAILURE REPORT -----'
+          cat "$report"
+          echo '----- END -----'
+          exit 0
 
       - name: Upload Playwright artifacts on failure
         if: failure()
