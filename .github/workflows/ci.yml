@@ -132,8 +132,10 @@ jobs:
           cat "$report" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "${PR_NUMBER}" ] && [ "${PR_NUMBER}" != "0" ]; then
             gh_err=$(mktemp)
+            payload=$(mktemp)
+            jq -Rs '{body: .}' <"$report" >"$payload"
             if ! gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
-                  --method POST -f body@"$report" 2>"$gh_err" >/dev/null; then
+                  --method POST --input "$payload" 2>"$gh_err" >/dev/null; then
               echo "::error title=PR comment failed::gh api response: $(tr '\n' ' ' <"$gh_err")"
               cat "$gh_err"
             fi
