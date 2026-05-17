@@ -14,6 +14,7 @@ import type { DrawioInbound, DrawioInboundUserPrefChange, DrawioOutbound } from 
 import { buildDrawioUrl, type DrawioUrlOptions } from "./drawio-url";
 import { createDrawioAssetLoader } from "./drawio-asset-loader";
 import { buildBootstrapHtml } from "./drawio-bootstrap-html";
+import { t } from "./i18n";
 
 // ─── Public types (frozen — do not change) ───────────────────────────────────
 
@@ -390,11 +391,21 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
       initialXml = opts?.initialXml ?? "";
       lastKnownXml = initialXml;
 
-      // Render loading indicator
+      // The loading/error indicators are absolutely positioned and centered;
+      // give the container a positioning context if it has none.
+      const containerPos = getComputedStyle(container).position;
+      if (containerPos === "" || containerPos === "static") {
+        container.style.position = "relative";
+      }
+
+      // Render centered loading spinner
       const loadingEl = document.createElement("div");
       loadingEl.setAttribute("data-drawio-loading", "");
-      loadingEl.textContent = "drawio エディタを読み込み中...";
-      loadingEl.style.padding = "8px";
+      loadingEl.setAttribute("role", "progressbar");
+      loadingEl.setAttribute("aria-label", t("view.drawio.loading"));
+      const spinnerEl = document.createElement("div");
+      spinnerEl.className = "drawio-loading-spinner";
+      loadingEl.appendChild(spinnerEl);
       container.appendChild(loadingEl);
       loadingIndicator = loadingEl;
 

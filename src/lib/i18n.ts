@@ -54,7 +54,12 @@ export type TranslationKey =
   | "banner.diff"
   | "banner.keepMine"
   | "view.drawio.displayText"
-  | "view.demo.displayText";
+  | "view.drawio.loading"
+  | "view.demo.displayText"
+  | "menu.editInDrawio"
+  | "action.newDiagram"
+  | "embed.clickToEdit"
+  | "notice.createDiagramFailed";
 
 const EN: Record<TranslationKey, string> = {
   "command.editPerDiagramSettings": "drawio: Edit per-diagram settings",
@@ -112,7 +117,12 @@ const EN: Record<TranslationKey, string> = {
   "banner.diff": "Diff",
   "banner.keepMine": "Keep mine",
   "view.drawio.displayText": "Drawio",
+  "view.drawio.loading": "Loading draw.io…",
   "view.demo.displayText": "Drawio demo",
+  "menu.editInDrawio": "Edit in draw.io",
+  "action.newDiagram": "New diagram",
+  "embed.clickToEdit": "Click to edit",
+  "notice.createDiagramFailed": "Failed to create the diagram",
 };
 
 const JA: Record<TranslationKey, string> = {
@@ -170,7 +180,12 @@ const JA: Record<TranslationKey, string> = {
   "banner.diff": "Diff",
   "banner.keepMine": "Keep mine",
   "view.drawio.displayText": "Drawio",
+  "view.drawio.loading": "draw.io を読み込み中…",
   "view.demo.displayText": "Drawio デモ",
+  "menu.editInDrawio": "draw.io で編集",
+  "action.newDiagram": "新規ダイアグラム",
+  "embed.clickToEdit": "クリックして編集",
+  "notice.createDiagramFailed": "ダイアグラムの作成に失敗しました",
 };
 
 const TRANSLATIONS: Record<Locale, Record<TranslationKey, string>> = { ja: JA, en: EN };
