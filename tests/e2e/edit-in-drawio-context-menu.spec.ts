@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import { waitForLayoutReady, getActiveFilePath } from "../helpers/obsidian-app.ts";
+import { revealFileExplorer, getActiveFilePath } from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
 // 今回追加: `.drawio.svg` / `.drawio.png` のコンテキストメニューに
@@ -11,7 +11,7 @@ test("edit-in-drawio-context-menu: a .drawio.svg file menu opens the drawio edit
   installPluginIntoVault();
   const { app, window } = await launchObsidianForVault(vaultRoot());
   await installMessageCapture(window);
-  await waitForLayoutReady(window);
+  await revealFileExplorer(window);
 
   // 否定ケース: drawio ではないファイルにはメニュー項目を出さない
   await window.locator('.nav-file-title[data-path="README.md"]').click({ button: "right" });

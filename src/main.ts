@@ -100,7 +100,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
       );
 
       // 埋め込み drawio リンクをライブプレビューに置き換える
-      registerDrawioEmbedPreview(this);
+      this.disposers.push(registerDrawioEmbedPreview(this));
 
       // ファイルエクスプローラの「新規ノート」ボタン横に「新規ダイアグラム」を追加
       this.app.workspace.onLayoutReady(() => this.installNewDiagramButtons());

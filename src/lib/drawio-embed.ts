@@ -1,9 +1,24 @@
-import { MarkdownRenderChild, type MarkdownPostProcessorContext, type TFile } from "obsidian";
+import { MarkdownRenderChild, type App, type TFile } from "obsidian";
 import { createDrawioBridge, type DrawioBridge } from "./drawio-bridge";
 import { readDrawioFile } from "./drawio-formats";
 import { resolveDrawioLanguage } from "./language-bridge";
 import { t } from "./i18n";
 import type ObsidianDrawioPlugin from "../main";
+
+// Obsidian 内部の embedRegistry — 公開 d.ts には未掲載のため最小限の型を定義する。
+// 画像や PDF と同じ仕組みで `.drawio` 埋め込みのレンダラを登録することで、
+// 読み取りモード・ライブプレビュー双方で一貫して動作し、かつ汎用ファイル
+// 埋め込みローダとの競合 (チップ表示で上書きされる) を回避できる。
+interface EmbedContext {
+  app: App;
+  containerEl: HTMLElement;
+}
+type DrawioEmbedComponent = MarkdownRenderChild & { loadFile: () => void };
+type EmbedCreator = (ctx: EmbedContext, file: TFile, subpath: string) => DrawioEmbedComponent;
+interface EmbedRegistry {
+  registerExtension(ext: string, creator: EmbedCreator): void;
+  unregisterExtension(ext: string): void;
+}
 
 /**
  * 埋め込み drawio リンク (`![[diagram.drawio]]`) を、ライブ drawio iframe による
@@ -11,47 +26,49 @@ import type ObsidianDrawioPlugin from "../main";
  *
  * iframe は重い (drawio 本体 ~9MB) ため、IntersectionObserver で
  * 画面内に入ったときだけ遅延マウントする。
+ *
+ * @returns 登録解除を行う dispose 関数
  */
-export function registerDrawioEmbedPreview(plugin: ObsidianDrawioPlugin): void {
-  plugin.registerMarkdownPostProcessor((el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
-    const embeds = el.querySelectorAll<HTMLElement>(".internal-embed");
-    embeds.forEach((embed) => {
-      if (embed.dataset.drawioEmbed) return;
-
-      const src = embed.getAttribute("src");
-      if (!src) return;
-
-      // `![[file.drawio#section|alt]]` から純粋なリンクパスだけ取り出す。
-      // `.drawio.svg` / `.drawio.png` は Obsidian が画像として描画するため対象外。
-      const linkpath = src.split(/[#|]/)[0].trim();
-      if (!/\.drawio$/i.test(linkpath)) return;
-
-      const file = plugin.app.metadataCache.getFirstLinkpathDest(linkpath, ctx.sourcePath);
-      if (!file) return;
-
-      embed.dataset.drawioEmbed = "1";
-      ctx.addChild(new DrawioEmbedChild(plugin, embed, file));
-    });
-  });
+export function registerDrawioEmbedPreview(plugin: ObsidianDrawioPlugin): () => void {
+  const registry = (plugin.app as unknown as { embedRegistry?: EmbedRegistry }).embedRegistry;
+  if (!registry) {
+    console.warn("[drawio-embed] embedRegistry is unavailable; embed previews disabled");
+    return () => {};
+  }
+  registry.registerExtension(
+    "drawio",
+    (ctx, file) => new DrawioEmbed(plugin, ctx.containerEl, file),
+  );
+  return () => {
+    try {
+      registry.unregisterExtension("drawio");
+    } catch (err) {
+      console.warn("[drawio-embed] unregisterExtension failed:", err);
+    }
+  };
 }
 
-class DrawioEmbedChild extends MarkdownRenderChild {
+class DrawioEmbed extends MarkdownRenderChild {
   private bridge: DrawioBridge | null = null;
   private observer: IntersectionObserver | null = null;
   private unloaded = false;
+  private built = false;
   private readonly plugin: ObsidianDrawioPlugin;
   private readonly file: TFile;
 
-  constructor(plugin: ObsidianDrawioPlugin, embedEl: HTMLElement, file: TFile) {
-    super(embedEl);
+  constructor(plugin: ObsidianDrawioPlugin, containerEl: HTMLElement, file: TFile) {
+    super(containerEl);
     this.plugin = plugin;
     this.file = file;
   }
 
-  onload(): void {
+  loadFile(): void {
+    if (this.built) return;
+    this.built = true;
+
     const embed = this.containerEl;
     embed.empty();
-    embed.removeClass("file-embed", "mod-empty", "is-loaded");
+    embed.removeClass("file-embed", "mod-empty", "mod-generic", "is-loaded");
     embed.addClass("drawio-embed");
 
     const host = embed.createDiv({ cls: "drawio-embed-preview" });
@@ -63,6 +80,7 @@ class DrawioEmbedChild extends MarkdownRenderChild {
       void this.plugin.openInDrawioView(this.file);
     });
 
+    // iframe は重いので、画面内に入ったときだけマウントする
     this.observer = new IntersectionObserver((entries) => {
       if (entries.some((e) => e.isIntersecting)) {
         this.observer?.disconnect();

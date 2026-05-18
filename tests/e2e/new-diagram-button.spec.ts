@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import { waitForLayoutReady, getActiveFilePath } from "../helpers/obsidian-app.ts";
+import { revealFileExplorer, getActiveFilePath } from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
 // 今回追加: file explorer の「新規ノート」ボタン横に「新規ダイアグラム」ボタンを
@@ -23,7 +23,7 @@ test("new-diagram-button: button sits next to 'New note' and creates a diagram",
   installPluginIntoVault();
   const { app, window } = await launchObsidianForVault(vaultRoot());
   await installMessageCapture(window);
-  await waitForLayoutReady(window);
+  await revealFileExplorer(window);
 
   const btn = window.locator(".drawio-new-diagram-button");
   await expect(btn).toBeVisible({ timeout: 10_000 });
