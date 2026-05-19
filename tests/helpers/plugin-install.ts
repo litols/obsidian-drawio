@@ -3,7 +3,6 @@ import {
   lstatSync,
   mkdirSync,
   readlinkSync,
-  statSync,
   symlinkSync,
   rmSync,
   cpSync,
@@ -42,32 +41,24 @@ export function installPluginIntoVault(options?: InstallPluginOptions): { plugin
 
     if (!existsSync(src)) continue;
 
-    const isDir = statSync(src).isDirectory();
-    if (isDir) {
-      const stat = lstatSync(dest, { throwIfNoEntry: false });
-      if (stat !== undefined) {
-        rmSync(dest, { recursive: true, force: true });
-      }
-      cpSync(src, dest, { recursive: true });
-    } else {
-      // file: prefer symlink; idempotent under parallel workers
-      const stat = lstatSync(dest, { throwIfNoEntry: false });
-      if (stat?.isSymbolicLink() && readlinkSync(dest) === src) {
+    // file/dir どちらも symlink を優先する。並列ワーカー下で冪等になり、
+    // ディレクトリ (drawio アセット) の rmSync+cpSync 競合を避けられる。
+    const stat = lstatSync(dest, { throwIfNoEntry: false });
+    if (stat?.isSymbolicLink() && readlinkSync(dest) === src) {
+      continue;
+    }
+    if (stat !== undefined) {
+      rmSync(dest, { recursive: true, force: true });
+    }
+    try {
+      symlinkSync(src, dest);
+    } catch {
+      // 競合した別ワーカーが先にシンボリックリンクを張ったケースを許容
+      const after = lstatSync(dest, { throwIfNoEntry: false });
+      if (after?.isSymbolicLink() && readlinkSync(dest) === src) {
         continue;
       }
-      if (stat !== undefined) {
-        rmSync(dest, { force: true });
-      }
-      try {
-        symlinkSync(src, dest);
-      } catch {
-        // 競合した別ワーカーが先にシンボリックリンクを張ったケースを許容
-        const after = lstatSync(dest, { throwIfNoEntry: false });
-        if (after?.isSymbolicLink() && readlinkSync(dest) === src) {
-          continue;
-        }
-        cpSync(src, dest, { recursive: true });
-      }
+      cpSync(src, dest, { recursive: true });
     }
   }
 
