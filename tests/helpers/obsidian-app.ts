@@ -1,5 +1,10 @@
 import type { Page } from "@playwright/test";
 
+interface WorkspaceLeafLike {
+  view?: { containerEl?: HTMLElement; getViewType?: () => string };
+  setViewState(state: { type: string }): Promise<void>;
+}
+
 interface ObsidianApp {
   workspace: {
     openLinkText(linkpath: string, sourcePath: string): Promise<void>;
@@ -7,6 +12,9 @@ interface ObsidianApp {
     getActiveFile?: () => { path: string } | null;
     onLayoutReady(cb: () => void): void;
     layoutReady?: boolean;
+    getLeavesOfType(type: string): WorkspaceLeafLike[];
+    getLeftLeaf?(split: boolean): WorkspaceLeafLike | null;
+    revealLeaf(leaf: WorkspaceLeafLike): void;
   };
   plugins: {
     enabledPlugins: Set<string>;
@@ -68,4 +76,22 @@ export async function ensurePluginEnabled(page: Page, id: string): Promise<void>
 
 export async function getActiveFilePath(page: Page): Promise<string | null> {
   return page.evaluate(() => window.app.workspace.getActiveFile?.()?.path ?? null);
+}
+
+/**
+ * ファイルエクスプローラの leaf を確実に開いて表示状態にする。
+ * 既定レイアウトに含まれていない場合は左サイドバーに生成する。
+ */
+export async function revealFileExplorer(page: Page): Promise<void> {
+  await waitForLayoutReady(page);
+  await page.evaluate(async () => {
+    const ws = window.app.workspace;
+    let leaves = ws.getLeavesOfType("file-explorer");
+    if (leaves.length === 0) {
+      const leaf = ws.getLeftLeaf?.(false);
+      if (leaf) await leaf.setViewState({ type: "file-explorer" });
+      leaves = ws.getLeavesOfType("file-explorer");
+    }
+    if (leaves[0]) ws.revealLeaf(leaves[0]);
+  });
 }
