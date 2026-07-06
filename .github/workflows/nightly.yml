@@ -1,0 +1,108 @@
+name: Nightly
+
+# Publishes a rolling "nightly" pre-release from the latest main commit, without
+# requiring a manual version bump. The released manifest.json gets an auto-generated
+# version (<base>-nightly.<timestamp>) so BRAT detects each new nightly as an update.
+#
+# BRAT users who want the nightly channel: add the plugin in BRAT and enable
+# pre-release / beta updates so it tracks the `nightly` tag.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # daily at 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Skip if no new commits (scheduled runs)
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$(git rev-list --since='24 hours ago' --max-count=1 HEAD)" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No commits in the last 24h — skipping nightly build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.check.outputs.build == 'true'
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.build == 'true'
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.check.outputs.build == 'true'
+        run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      - name: Compute nightly version
+        if: steps.check.outputs.build == 'true'
+        id: v
+        run: |
+          BASE=$(node -p "require('./manifest.json').version")
+          STAMP=$(date -u +'%Y%m%d%H%M')
+          VERSION="${BASE}-nightly.${STAMP}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Nightly version: $VERSION ($(git rev-parse --short HEAD))"
+
+      - name: Build
+        if: steps.check.outputs.build == 'true'
+        run: pnpm build
+        env:
+          NODE_ENV: production
+
+      - name: Package release assets
+        if: steps.check.outputs.build == 'true'
+        run: bash scripts/package-plugin.sh "${{ steps.v.outputs.version }}"
+
+      - name: Write release notes
+        if: steps.check.outputs.build == 'true'
+        run: |
+          VERSION="${{ steps.v.outputs.version }}"
+          SHA=$(git rev-parse --short HEAD)
+          cat > release-notes.md <<EOF
+          **Nightly build \`$VERSION\`** from commit \`$SHA\`.
+
+          This is an automated, unstable pre-release rebuilt from the latest \`main\`. The \`nightly\` tag always points at the most recent build.
+
+          ## Install via Obsidian BRAT
+          Add \`litols/obsidian-drawio\` in BRAT and enable pre-release / beta updates so BRAT tracks this \`nightly\` channel. BRAT installs \`main.js\`, \`manifest.json\` and \`styles.css\`.
+
+          > **Note:** BRAT does not yet fetch the bundled draw.io web app (the \`drawio/\` folder) or \`iframe-init.js\`. For a fully working install, use the \`obsidian-drawio-$VERSION.zip\` below (extract into \`<vault>/.obsidian/plugins/\`).
+          EOF
+
+      - name: Publish rolling nightly pre-release
+        if: steps.check.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Replace the previous nightly release + tag so `nightly` always points at the newest build.
+          gh release delete nightly --cleanup-tag --yes || true
+          gh release create nightly \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Nightly ${{ steps.v.outputs.version }}" \
+            --notes-file release-notes.md \
+            release-assets/*

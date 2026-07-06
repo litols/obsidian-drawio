@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Release packaging artifacts (scripts/package-plugin.sh)
+release-assets/
+release-notes.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
