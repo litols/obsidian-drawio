@@ -6,6 +6,45 @@ Obsidian desktop plugin for viewing and editing draw.io diagrams
 > **Status**: under active development. Spec-driven via the kiro workflow
 > in `.kiro/specs/`.
 
+## Installation
+
+Releases are built automatically by GitHub Actions (`.github/workflows/release.yml`
+for tagged versions, `nightly.yml` for the rolling nightly build).
+
+### Manual install (recommended — fully working)
+
+1. Open the [Releases](https://github.com/litols/obsidian-drawio/releases) page and
+   download `obsidian-drawio-<version>.zip` from the version you want (or from the
+   `nightly` pre-release for the latest build).
+2. Extract it into `<your-vault>/.obsidian/plugins/` — it unpacks to an
+   `obsidian-drawio/` folder.
+3. Reload Obsidian and enable **Drawio** under Settings → Community plugins.
+
+### Obsidian BRAT
+
+Add `litols/obsidian-drawio` in [BRAT](https://github.com/TfTHacker/obsidian42-brat).
+For the nightly channel, enable pre-release / beta updates in BRAT so it tracks the
+`nightly` tag; each nightly ships an auto-incrementing `-nightly.<timestamp>` version
+so BRAT detects updates without a manual version bump.
+
+> **Note:** BRAT only downloads `main.js`, `manifest.json` and `styles.css`. This
+> plugin also needs `iframe-init.js` and the bundled draw.io web app (the `drawio/`
+> folder, ~150&nbsp;MB), which BRAT cannot fetch yet. Until runtime asset download is
+> implemented, a BRAT install alone cannot render diagrams — use the manual zip above
+> for a fully working setup.
+
+### Releasing (maintainers)
+
+Push a version tag (Obsidian convention: no `v` prefix, matching `manifest.json`):
+
+```bash
+git tag 0.2.0
+git push origin 0.2.0
+```
+
+or trigger **Release** from the Actions tab and enter the version. Each release
+publishes the three BRAT files plus the full `obsidian-drawio-<version>.zip`.
+
 ## Features (planned / in progress)
 
 - Open and edit `.drawio` / `.drawio.svg` / `.drawio.png` files in an

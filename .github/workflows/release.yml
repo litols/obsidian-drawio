@@ -1,0 +1,104 @@
+name: Release
+
+# Builds the plugin and publishes a GitHub Release so it can be installed via
+# Obsidian BRAT (main.js / manifest.json / styles.css) or manually (full plugin zip).
+#
+# Trigger by pushing a version tag (e.g. `1.2.3` or `v1.2.3`), or run manually
+# from the Actions tab and supply the version.
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.3 (a matching tag is created)."
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: v
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $VERSION"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          # Electron is only needed for E2E, not for building release artifacts.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      - name: Build
+        run: pnpm build
+        env:
+          NODE_ENV: production
+
+      - name: Package release assets
+        run: bash scripts/package-plugin.sh "${{ steps.v.outputs.version }}"
+
+      - name: Write release notes
+        run: |
+          TAG="${{ steps.v.outputs.tag }}"
+          cat > release-notes.md <<EOF
+          Automated release **$TAG**.
+
+          ## Install via Obsidian BRAT
+          Add \`litols/obsidian-drawio\` in BRAT. BRAT installs \`main.js\`, \`manifest.json\` and \`styles.css\`.
+
+          > **Note:** BRAT does not yet fetch the bundled draw.io web app (the \`drawio/\` folder) or \`iframe-init.js\`, which this plugin needs to render diagrams. Until runtime asset download is added, use the manual install below for a fully working setup.
+
+          ## Manual install
+          1. Download \`obsidian-drawio-$TAG.zip\` below.
+          2. Extract it into \`<your-vault>/.obsidian/plugins/\` (it unpacks to an \`obsidian-drawio/\` folder).
+          3. Reload Obsidian and enable **Drawio** under Settings → Community plugins.
+          EOF
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.v.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file release-notes.md
+            gh release upload "$TAG" release-assets/* --clobber
+          else
+            # For manual runs the tag may not exist yet; gh creates it at this commit.
+            gh release create "$TAG" \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --notes-file release-notes.md \
+              release-assets/*
+          fi
