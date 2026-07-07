@@ -98,11 +98,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Replace the previous nightly release + tag so `nightly` always points at the newest build.
-          gh release delete nightly --cleanup-tag --yes || true
-          gh release create nightly \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Nightly ${{ steps.v.outputs.version }}" \
-            --notes-file release-notes.md \
-            release-assets/*
+          # Roll the `nightly` tag forward to the current main HEAD instead of cutting a
+          # brand-new tag each run. Force-moving the existing tag keeps the same rolling
+          # pre-release (stable URL, preserved download counts) while always tracking main.
+          git tag -f nightly "$GITHUB_SHA"
+          git push -f origin refs/tags/nightly
+
+          if gh release view nightly >/dev/null 2>&1; then
+            # Update the existing rolling pre-release in place.
+            gh release edit nightly \
+              --prerelease \
+              --target "$GITHUB_SHA" \
+              --title "Nightly ${{ steps.v.outputs.version }}" \
+              --notes-file release-notes.md
+            gh release upload nightly release-assets/* --clobber
+          else
+            # First run: create the rolling pre-release for the freshly-pushed tag.
+            gh release create nightly \
+              --prerelease \
+              --target "$GITHUB_SHA" \
+              --title "Nightly ${{ steps.v.outputs.version }}" \
+              --notes-file release-notes.md \
+              release-assets/*
+          fi
