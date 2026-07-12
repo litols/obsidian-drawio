@@ -37,6 +37,16 @@ export interface DrawioBridgeCallbacks {
 export interface DrawioBridgeMountOptions extends DrawioUrlOptions {
   initialXml?: string;
   callbacks?: DrawioBridgeCallbacks;
+  /**
+   * drawio embed の configure プロトコル payload。指定すると URL に configure=1 が付き、
+   * 起動時に drawio が投げる {event:"configure"} に対して {action:"configure", config} で応答する。
+   *
+   * 代表的な key:
+   *   - defaultLibraries: "aws4;general;..." (semicolon-joined) — Sidebar.defaultEntries
+   *   - libraries: [{title, entries}] — Sidebar.customEntries (カスタムパレット)
+   *   - enabledLibraries: string[] — More Shapes ダイアログで選択可能な built-in ID 白リスト
+   */
+  drawioConfig?: Record<string, unknown>;
 }
 
 export interface DrawioBridge {
@@ -47,7 +57,6 @@ export interface DrawioBridge {
   requestSave(): void;
   requestExport(format: DrawioExportFormat): void;
   setTheme(theme: "light" | "dark"): void;
-  setLibraries(libs: ReadonlyArray<{ title: string; entries: unknown[] }>): void;
   sendMessage(msg: DrawioOutbound): void;
   readonly isMounted: boolean;
 }
@@ -87,6 +96,7 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
   let initialXml = "";
   let lastKnownXml = "";
   let mounted = false;
+  let drawioConfig: Record<string, unknown> | null = null;
 
   // Indicator elements rendered into container
   let loadingIndicator: HTMLElement | null = null;
@@ -309,6 +319,19 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
           break;
 
         case "configuring":
+          // drawio が urlParams.configure=="1" 起動時に投げてくる configure リクエスト。
+          // これに応答することで Editor.configure(config) → Sidebar.defaultEntries 等が設定される。
+          // configure リスナは drawio 側で 1 度受信すると remove されるので、post-init で
+          // configure を再送しても効果はない。iframe 単位で正しく 1 回だけ応答する。
+          if (raw.event === "configure") {
+            if (currentIframe.contentWindow) {
+              currentIframe.contentWindow.postMessage(
+                JSON.stringify({ action: "configure", config: drawioConfig ?? {} }),
+                "*",
+              );
+            }
+            break;
+          }
           // Wait for drawio's init event
           if (raw.event === "init") {
             state = "ready";
@@ -390,6 +413,11 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
       callbacks = opts?.callbacks ?? {};
       initialXml = opts?.initialXml ?? "";
       lastKnownXml = initialXml;
+      drawioConfig = opts?.drawioConfig ?? null;
+      // drawioConfig を渡された場合は URL に configure=1 を強制的に付ける。
+      // これがないと drawio は起動時に親へ {event:"configure"} を投げず、config が届かない。
+      const optsWithConfigure: DrawioBridgeMountOptions | undefined =
+        drawioConfig != null ? { ...opts, configure: true } : opts;
 
       // The loading/error indicators are absolutely positioned and centered;
       // give the container a positioning context if it has none.
@@ -444,7 +472,7 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
         // If state changed while loading (e.g. dispose was called), abort
         if (state !== "loading") return;
 
-        const urlParams = extractUrlParams(opts);
+        const urlParams = extractUrlParams(optsWithConfigure);
         const bootstrapHtml = buildBootstrapHtml();
 
         // Create iframe
@@ -507,10 +535,6 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
         action: "configure",
         config: { ui: theme === "dark" ? "dark" : "kennedy" },
       });
-    },
-
-    setLibraries(libs: ReadonlyArray<{ title: string; entries: unknown[] }>): void {
-      sendMessageInternal({ action: "configure", config: { libraries: libs } });
     },
 
     sendMessage(msg: DrawioOutbound): void {

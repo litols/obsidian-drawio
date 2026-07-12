@@ -9,6 +9,11 @@ export interface DrawioUrlOptions {
   /** drawio UI theme. "kennedy" (= classic) is drawio.com の従来 UI。 */
   ui?: "kennedy" | "atlas" | "dark" | "min" | "sketch";
   lang?: string;
+  /**
+   * `configure=1`: drawio が起動時に親へ {event:"configure"} を送り、
+   * 親からの {action:"configure", config} を Editor.configure に食わせる正規プロトコルを有効化。
+   */
+  configure?: boolean;
   extraParams?: Record<string, string | number | boolean>;
 }
 
@@ -18,6 +23,7 @@ export function buildDrawioUrl(basePath: string, opts?: DrawioUrlOptions): strin
   params.set("proto", "json");
   if (opts?.spin ?? true) params.set("spin", "1");
   if (opts?.libraries ?? true) params.set("libraries", "1");
+  if (opts?.configure) params.set("configure", "1");
   if (opts?.noSaveBtn) params.set("noSaveBtn", "1");
   if (opts?.noExitBtn) params.set("noExitBtn", "1");
   // saveAndExit: undefined → drawio's default (added when autosave); false → "0" suppresses it.

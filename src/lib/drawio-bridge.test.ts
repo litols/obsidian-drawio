@@ -112,7 +112,6 @@ describe("createDrawioBridge", () => {
     expect(typeof bridge.requestSave).toBe("function");
     expect(typeof bridge.requestExport).toBe("function");
     expect(typeof bridge.setTheme).toBe("function");
-    expect(typeof bridge.setLibraries).toBe("function");
     expect(typeof bridge.sendMessage).toBe("function");
     expect(bridge.isMounted).toBe(false);
   });
@@ -168,6 +167,57 @@ describe("createDrawioBridge", () => {
     expect(configureCall).toBeDefined();
     expect(Array.isArray(configureCall!["responses"])).toBe(true);
     expect(typeof configureCall!["urlParams"]).toBe("object");
+
+    bridge.dispose();
+  });
+
+  // ── Test 3b: drawioConfig → configure=1 URL param + configure reply ──────
+
+  it("with drawioConfig set, replies to drawio's {event:'configure'} request with {action:'configure', config}", async () => {
+    const mockApp = buildMockApp();
+    const bridge = createDrawioBridge(mockApp as never, "test-plugin");
+    const drawioConfig = { defaultLibraries: "aws4;general" };
+    bridge.mount(container, { initialXml: "<mxfile/>", drawioConfig });
+    await flushAsync();
+
+    const iframe = getIframe(container)!;
+    const postMessageSpy = vi.spyOn(iframe.contentWindow!, "postMessage");
+
+    // Advance state machine to "configuring"
+    simulateIframeMessage(iframe.contentWindow, { event: "iframe" });
+
+    // drawio (in configure=1 mode) asks the parent for its config
+    simulateIframeMessage(iframe.contentWindow, { event: "configure" });
+
+    const calls = postMessageSpy.mock.calls.map(
+      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    );
+    // configure reply: {action:"configure", config: drawioConfig}
+    const reply = calls.find(
+      (m) => m["action"] === "configure" && "config" in m && !("responses" in m),
+    );
+    expect(reply).toBeDefined();
+    expect(reply!["config"]).toEqual(drawioConfig);
+
+    bridge.dispose();
+  });
+
+  it("without drawioConfig, does not add configure=1 to URL params", async () => {
+    const mockApp = buildMockApp();
+    const bridge = createDrawioBridge(mockApp as never, "test-plugin");
+    bridge.mount(container, { initialXml: "<mxfile/>" });
+    await flushAsync();
+
+    const iframe = getIframe(container)!;
+    const postMessageSpy = vi.spyOn(iframe.contentWindow!, "postMessage");
+    simulateIframeMessage(iframe.contentWindow, { event: "iframe" });
+
+    const calls = postMessageSpy.mock.calls.map(
+      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    );
+    const configureCall = calls.find((m) => m["action"] === "configure" && "urlParams" in m);
+    const urlParams = configureCall?.["urlParams"] as Record<string, string> | undefined;
+    expect(urlParams?.["configure"]).toBeUndefined();
 
     bridge.dispose();
   });
