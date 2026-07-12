@@ -170,7 +170,10 @@ export class DrawioView extends FileView {
     if (msg.pref === "libraries") {
       // drawio 内で操作できる内蔵ライブラリ集合のみ書き換える。
       // customLibraries (Vault パス) は drawio 内 UI から追加できない領域なので保持。
-      drawio.defaultLibraries = [...msg.value.defaults];
+      // baseline (general/basic 等) は buildDrawioConfig で常に union されるため、
+      // 設定側にも重複保存すると設定 UI がノイジーになる → 保存時に除外する。
+      const baseline = new Set<string>(drawio.baselineLibraries);
+      drawio.defaultLibraries = msg.value.defaults.filter((id) => !baseline.has(id));
       this.schedulePrefSave();
       return;
     }

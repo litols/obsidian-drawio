@@ -215,6 +215,21 @@ describe("migrateSettings", () => {
       const result = migrateSettings({ drawio: { customLibraries: ["mylib"] } });
       expect(result.customLibraries).toEqual(["mylib"]);
     });
+
+    it("baselineLibraries が未指定なら drawio 既定 7 カテゴリで seed される", () => {
+      const result = migrateSettings({ drawio: {} });
+      expect(result.baselineLibraries).toEqual(DEFAULT_DRAWIO_SETTINGS.baselineLibraries);
+    });
+
+    it("baselineLibraries に空配列を明示指定するとその通り採用される", () => {
+      const result = migrateSettings({ drawio: { baselineLibraries: [] } });
+      expect(result.baselineLibraries).toEqual([]);
+    });
+
+    it("baselineLibraries に string 配列を指定するとそのまま採用される", () => {
+      const result = migrateSettings({ drawio: { baselineLibraries: ["general", "basic"] } });
+      expect(result.baselineLibraries).toEqual(["general", "basic"]);
+    });
   });
 
   describe("boolean フィールド (math / grid / ribbonEnabled / compression) の検証", () => {

@@ -1,5 +1,22 @@
 import type { Plugin } from "obsidian";
 
+/**
+ * drawio 内蔵の基本カテゴリ ID。drawio.com / desktop の初期サイドバーに
+ * 常時表示される 7 カテゴリ (Sidebar.prototype.defaultEntries の hardcoded default)。
+ * plugin では localStorage を無効化しているため、settings.baselineLibraries に
+ * 何も設定されていない場合はここが seed される。実運用では
+ * `settings.drawio.baselineLibraries` を参照すること。
+ */
+export const BASELINE_DEFAULT_LIBRARIES: readonly string[] = [
+  "general",
+  "uml",
+  "er",
+  "bpmn",
+  "flowchart",
+  "basic",
+  "arrows2",
+];
+
 export interface PluginSettings {
   drawio?: DrawioSettings;
   // Legacy top-level fields added by drawio-file-io. Absorbed into drawio.* by migrateSettings.
@@ -46,6 +63,11 @@ export const DEFAULT_EXTERNAL_SYNC_SETTINGS: ExternalSyncSettings = {
 export interface DrawioSettings {
   settingsVersion: number;
   theme: DrawioTheme;
+  /**
+   * 常にサイドバーに出す drawio 内蔵カテゴリ (general / basic / flowchart 等)。
+   * user が More Shapes で選択解除しても buildDrawioConfig が再 union して復元する。
+   */
+  baselineLibraries: string[];
   defaultLibraries: string[];
   customLibraries: string[];
   defaultSaveFormat: DrawioSaveFormat;
@@ -66,7 +88,8 @@ export interface DrawioPluginSettings {
 export const DEFAULT_DRAWIO_SETTINGS: DrawioSettings = {
   settingsVersion: 2,
   theme: "auto",
-  defaultLibraries: ["general"],
+  baselineLibraries: [...BASELINE_DEFAULT_LIBRARIES],
+  defaultLibraries: [],
   customLibraries: [],
   defaultSaveFormat: "keep",
   compression: true,
@@ -145,6 +168,10 @@ export function migrateSettings(raw: unknown): DrawioSettings {
     ? (rawSaveFormat as DrawioSaveFormat)
     : DEFAULT_DRAWIO_SETTINGS.defaultSaveFormat;
 
+  const baselineLibraries = Array.isArray(drawioInput.baselineLibraries)
+    ? (drawioInput.baselineLibraries as string[]).filter((v) => typeof v === "string")
+    : [...BASELINE_DEFAULT_LIBRARIES];
+
   const defaultLibraries = Array.isArray(drawioInput.defaultLibraries)
     ? (drawioInput.defaultLibraries as string[]).filter((v) => typeof v === "string")
     : DEFAULT_DRAWIO_SETTINGS.defaultLibraries;
@@ -194,6 +221,7 @@ export function migrateSettings(raw: unknown): DrawioSettings {
   return {
     settingsVersion: 2,
     theme,
+    baselineLibraries,
     defaultLibraries,
     customLibraries,
     defaultSaveFormat,

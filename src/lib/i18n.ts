@@ -34,6 +34,13 @@ export type TranslationKey =
   | "settings.customLibraries.err.empty"
   | "settings.customLibraries.err.externalUrl"
   | "settings.customLibraries.err.absolute"
+  | "settings.baselineLibraries.label"
+  | "settings.baselineLibraries.hint"
+  | "settings.baselineLibraries.placeholder"
+  | "settings.baselineLibraries.add"
+  | "settings.baselineLibraries.remove"
+  | "settings.baselineLibraries.reset"
+  | "settings.baselineLibraries.err.empty"
   | "perDiagram.heading"
   | "perDiagram.themeOverride"
   | "perDiagram.useGlobal"
@@ -97,6 +104,14 @@ const EN: Record<TranslationKey, string> = {
   "settings.customLibraries.err.empty": "Enter a path",
   "settings.customLibraries.err.externalUrl": "External URLs are not allowed",
   "settings.customLibraries.err.absolute": "Absolute paths are not allowed",
+  "settings.baselineLibraries.label": "Baseline libraries (always shown in sidebar)",
+  "settings.baselineLibraries.hint":
+    "drawio built-in category IDs (e.g. general, basic, flowchart, uml). Always merged into the sidebar regardless of what you toggle in More Shapes.",
+  "settings.baselineLibraries.placeholder": "e.g. general",
+  "settings.baselineLibraries.add": "Add",
+  "settings.baselineLibraries.remove": "Remove",
+  "settings.baselineLibraries.reset": "Reset to drawio default",
+  "settings.baselineLibraries.err.empty": "Enter a library ID",
   "perDiagram.heading": "Per-diagram settings",
   "perDiagram.themeOverride": "Theme override (leave empty to use global)",
   "perDiagram.useGlobal": "(Use global setting)",
@@ -160,6 +175,14 @@ const JA: Record<TranslationKey, string> = {
   "settings.customLibraries.err.empty": "パスを入力してください",
   "settings.customLibraries.err.externalUrl": "外部 URL は使用できません",
   "settings.customLibraries.err.absolute": "絶対パスは使用できません",
+  "settings.baselineLibraries.label": "ベースライブラリ (常時サイドバーに表示)",
+  "settings.baselineLibraries.hint":
+    "drawio 内蔵カテゴリ ID (例: general, basic, flowchart, uml)。More Shapes での切り替えに関わらずサイドバーに merge されます。",
+  "settings.baselineLibraries.placeholder": "例: general",
+  "settings.baselineLibraries.add": "追加",
+  "settings.baselineLibraries.remove": "削除",
+  "settings.baselineLibraries.reset": "drawio 既定に戻す",
+  "settings.baselineLibraries.err.empty": "ライブラリ ID を入力してください",
   "perDiagram.heading": "図ごとの設定",
   "perDiagram.themeOverride": "テーマ override（空欄でグローバル設定を使用）",
   "perDiagram.useGlobal": "(グローバル設定を使用)",

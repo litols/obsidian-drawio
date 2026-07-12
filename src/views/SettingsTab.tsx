@@ -2,6 +2,7 @@ import * as React from "react";
 import { App, PluginSettingTab } from "obsidian";
 import type ObsidianDrawioPlugin from "../main";
 import type { DrawioLanguage, DrawioSaveFormat, DrawioSettings } from "../lib/settings";
+import { BASELINE_DEFAULT_LIBRARIES } from "../lib/settings";
 import { t, type TranslationKey } from "../lib/i18n";
 
 interface SettingsAppProps {
@@ -47,6 +48,70 @@ interface CustomLibrariesInputProps {
   paths: string[];
   onChange: (paths: string[]) => void;
 }
+
+interface BaselineLibrariesInputProps {
+  ids: string[];
+  onChange: (ids: string[]) => void;
+}
+
+const BaselineLibrariesInput: React.FC<BaselineLibrariesInputProps> = ({ ids, onChange }) => {
+  const [draft, setDraft] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+
+  const add = () => {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      setError(t("settings.baselineLibraries.err.empty"));
+      return;
+    }
+    setError(null);
+    // dedupe: 既存に含まれていれば追加しない
+    if (ids.includes(trimmed)) {
+      setDraft("");
+      return;
+    }
+    onChange([...ids, trimmed]);
+    setDraft("");
+  };
+
+  return (
+    <div>
+      <label>{t("settings.baselineLibraries.label")}</label>
+      <p style={{ opacity: 0.75, fontSize: "0.85em", margin: "0.25em 0" }}>
+        {t("settings.baselineLibraries.hint")}
+      </p>
+      <div>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={t("settings.baselineLibraries.placeholder")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") add();
+          }}
+        />
+        <button onClick={add}>{t("settings.baselineLibraries.add")}</button>
+        <button
+          type="button"
+          onClick={() => onChange([...BASELINE_DEFAULT_LIBRARIES])}
+          style={{ marginLeft: "0.5em" }}
+        >
+          {t("settings.baselineLibraries.reset")}
+        </button>
+      </div>
+      {error && <span style={{ color: "red" }}>{error}</span>}
+      <ul>
+        {ids.map((id, i) => (
+          <li key={i}>
+            {id}{" "}
+            <button onClick={() => onChange(ids.filter((_, j) => j !== i))}>
+              {t("settings.baselineLibraries.remove")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
 const CustomLibrariesInput: React.FC<CustomLibrariesInputProps> = ({ paths, onChange }) => {
   const [draft, setDraft] = React.useState("");
@@ -117,6 +182,11 @@ const SettingsApp: React.FC<SettingsAppProps> = ({ plugin }) => {
       <h2>draw.io</h2>
 
       <p style={{ opacity: 0.75, fontSize: "0.9em" }}>{t("settings.editorPrefHint")}</p>
+
+      <BaselineLibrariesInput
+        ids={settings.baselineLibraries}
+        onChange={(ids) => void update("baselineLibraries", ids)}
+      />
 
       <CustomLibrariesInput
         paths={settings.customLibraries}

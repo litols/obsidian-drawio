@@ -44,10 +44,22 @@ export async function buildDrawioConfig(
   vault: Vault,
 ): Promise<Record<string, unknown>> {
   const config: Record<string, unknown> = {};
-  const defaults = settings.defaultLibraries.filter((id) => typeof id === "string" && id.length > 0);
-  if (defaults.length > 0) {
-    config.defaultLibraries = defaults.join(";");
+  const baseline = settings.baselineLibraries.filter(
+    (id) => typeof id === "string" && id.length > 0,
+  );
+  const userDefaults = settings.defaultLibraries.filter(
+    (id) => typeof id === "string" && id.length > 0,
+  );
+  // baseline を常に含める。user が More Shapes で追加したカテゴリ (aws4 等) は
+  // baseline 後に追記する形で order も安定させる。
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const id of [...baseline, ...userDefaults]) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    merged.push(id);
   }
+  config.defaultLibraries = merged.join(";");
   const customs = await loadCustomLibraries(vault, settings.customLibraries);
   if (customs.length > 0) {
     config.libraries = customs;
