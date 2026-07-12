@@ -1,7 +1,7 @@
 import { FileView, Notice, type EventRef, type TFile, type WorkspaceLeaf } from "obsidian";
 import { readDrawioFile, writeDrawioFile, type DrawioFormat } from "../lib/drawio-formats";
 import { createDrawioBridge, type DrawioBridge } from "../lib/drawio-bridge";
-import { applyLibraries } from "../lib/library-bridge";
+import { buildDrawioConfig } from "../lib/library-bridge";
 import { resolveDrawioLanguage } from "../lib/language-bridge";
 import { t } from "../lib/i18n";
 import type { ExternalChangeEvent } from "../lib/external-watcher";
@@ -216,6 +216,12 @@ export class DrawioView extends FileView {
     container.style.padding = "0";
     container.style.height = "100%";
 
+    // drawio 起動時 configure protocol に渡す payload を先に組み立てる。
+    // ここに詰めた設定 (defaultLibraries など) が Sidebar.defaultEntries に反映される。
+    const drawioConfig = this.plugin.settings.drawio
+      ? await buildDrawioConfig(this.plugin.settings.drawio, this.app.vault)
+      : undefined;
+
     this.bridge = createDrawioBridge(this.app, this.plugin.manifest.dir);
     this.bridge.mount(container, {
       initialXml: result.xml,
@@ -227,6 +233,7 @@ export class DrawioView extends FileView {
       autosave: true,
       // drawio.com の従来 UI (Kennedy) を強制。Atlas (default) ではサイドバーが出ない。
       ui: "kennedy",
+      drawioConfig,
       callbacks: {
         onAutosave: (xml) => {
           this._lastXml = xml;
@@ -250,9 +257,6 @@ export class DrawioView extends FileView {
     if (this.bridge && this.plugin.themeBridge) {
       this.plugin.themeBridge.registerBridge(this.bridge);
       this.plugin.themeBridge.applyTheme(this.bridge);
-    }
-    if (this.bridge && this.plugin.settings.drawio) {
-      void applyLibraries(this.bridge, this.plugin.settings.drawio, this.app.vault);
     }
 
     // 重複購読を防ぐため既存 ref を先に解除
