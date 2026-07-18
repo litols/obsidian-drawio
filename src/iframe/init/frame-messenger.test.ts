@@ -87,6 +87,69 @@ describe("createIframeFrameMessenger", () => {
     messenger.destroy();
   });
 
+  // ── onMessage — structured clone (object) 受理 ─────────────────────────
+
+  function dispatchRaw(data: unknown, source: unknown): void {
+    // JSON.stringify せず data をそのまま MessageEvent に載せる (structured clone 相当)
+    const event = new MessageEvent("message", {
+      data,
+      source: source as MessageEventSource,
+    });
+    selfWindow.dispatchEvent(event);
+  }
+
+  it("onMessage は文字列化されていないオブジェクトをそのまま受理する (structured clone)", () => {
+    const messenger = createIframeFrameMessenger({
+      selfWindow,
+      parentWindow: parentWindow as unknown as Window,
+    });
+
+    const handler = vi.fn();
+    messenger.onMessage(handler);
+
+    const payload = { action: "configure", responses: [{ href: "a", mediaType: "text/css", source: "x" }] };
+    dispatchRaw(payload, parentWindow);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    // 参照はコピーされない (JSON 経由でないため) が、内容は等価
+    expect(handler).toHaveBeenCalledWith(payload);
+
+    messenger.destroy();
+  });
+
+  it("onMessage は文字列 JSON も従来どおり受理する (両受理)", () => {
+    const messenger = createIframeFrameMessenger({
+      selfWindow,
+      parentWindow: parentWindow as unknown as Window,
+    });
+
+    const handler = vi.fn();
+    messenger.onMessage(handler);
+
+    dispatchRaw(JSON.stringify({ action: "configure" }), parentWindow);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith({ action: "configure" });
+
+    messenger.destroy();
+  });
+
+  it("onMessage は null データを無視する (throw しない)", () => {
+    const messenger = createIframeFrameMessenger({
+      selfWindow,
+      parentWindow: parentWindow as unknown as Window,
+    });
+
+    const handler = vi.fn();
+    messenger.onMessage(handler);
+
+    dispatchRaw(null, parentWindow);
+
+    expect(handler).not.toHaveBeenCalled();
+
+    messenger.destroy();
+  });
+
   // ── onMessage — untrusted source ────────────────────────────────────────
 
   it("onMessage ignores messages whose source !== parentWindow", () => {

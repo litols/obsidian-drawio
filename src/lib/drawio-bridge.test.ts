@@ -154,8 +154,12 @@ describe("createDrawioBridge", () => {
     // These are synchronous postMessage calls, so they happen immediately
     expect(postMessageSpy.mock.calls.length).toBeGreaterThanOrEqual(3);
 
-    const calls = postMessageSpy.mock.calls.map(
-      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    // parent→iframe の script / configure はオブジェクトのまま送られる。drawio webapp
+    // 向けの configure 応答 / load は従来どおり JSON 文字列。両方を許容して読む。
+    const calls = postMessageSpy.mock.calls.map((c) =>
+      typeof c[0] === "string"
+        ? (JSON.parse(c[0]) as Record<string, unknown>)
+        : (c[0] as Record<string, unknown>),
     );
 
     // Script injection call (init source)
@@ -189,8 +193,12 @@ describe("createDrawioBridge", () => {
     // drawio (in configure=1 mode) asks the parent for its config
     simulateIframeMessage(iframe.contentWindow, { event: "configure" });
 
-    const calls = postMessageSpy.mock.calls.map(
-      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    // parent→iframe の script / configure はオブジェクトのまま送られる。drawio webapp
+    // 向けの configure 応答 / load は従来どおり JSON 文字列。両方を許容して読む。
+    const calls = postMessageSpy.mock.calls.map((c) =>
+      typeof c[0] === "string"
+        ? (JSON.parse(c[0]) as Record<string, unknown>)
+        : (c[0] as Record<string, unknown>),
     );
     // configure reply: {action:"configure", config: drawioConfig}
     const reply = calls.find(
@@ -212,8 +220,12 @@ describe("createDrawioBridge", () => {
     const postMessageSpy = vi.spyOn(iframe.contentWindow!, "postMessage");
     simulateIframeMessage(iframe.contentWindow, { event: "iframe" });
 
-    const calls = postMessageSpy.mock.calls.map(
-      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    // parent→iframe の script / configure はオブジェクトのまま送られる。drawio webapp
+    // 向けの configure 応答 / load は従来どおり JSON 文字列。両方を許容して読む。
+    const calls = postMessageSpy.mock.calls.map((c) =>
+      typeof c[0] === "string"
+        ? (JSON.parse(c[0]) as Record<string, unknown>)
+        : (c[0] as Record<string, unknown>),
     );
     const configureCall = calls.find((m) => m["action"] === "configure" && "urlParams" in m);
     const urlParams = configureCall?.["urlParams"] as Record<string, string> | undefined;
@@ -240,8 +252,12 @@ describe("createDrawioBridge", () => {
     // Now simulate {event:"init"} from drawio webapp
     simulateIframeMessage(iframe.contentWindow, { event: "init" });
 
-    const calls = postMessageSpy.mock.calls.map(
-      (c) => JSON.parse(c[0] as string) as Record<string, unknown>,
+    // parent→iframe の script / configure はオブジェクトのまま送られる。drawio webapp
+    // 向けの configure 応答 / load は従来どおり JSON 文字列。両方を許容して読む。
+    const calls = postMessageSpy.mock.calls.map((c) =>
+      typeof c[0] === "string"
+        ? (JSON.parse(c[0]) as Record<string, unknown>)
+        : (c[0] as Record<string, unknown>),
     );
     const loadCall = calls.find((m) => m["action"] === "load");
     expect(loadCall).toBeDefined();

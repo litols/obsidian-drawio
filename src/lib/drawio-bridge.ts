@@ -13,6 +13,7 @@ import type { App } from "obsidian";
 import type { DrawioInbound, DrawioInboundUserPrefChange, DrawioOutbound } from "./drawio-protocol";
 import { buildDrawioUrl, type DrawioUrlOptions } from "./drawio-url";
 import { createDrawioAssetLoader } from "./drawio-asset-loader";
+import type { DrawioAssetProvider } from "./drawio-asset-cache";
 import { buildBootstrapHtml } from "./drawio-bootstrap-html";
 import { t } from "./i18n";
 
@@ -88,7 +89,11 @@ const TIMEOUT_INIT_EVENT_MS = 15_000;
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
-export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
+export function createDrawioBridge(
+  app: App,
+  pluginDir?: string,
+  assetProvider?: DrawioAssetProvider,
+): DrawioBridge {
   let state: BridgeState = "idle";
   let iframe: HTMLIFrameElement | null = null;
   let messageHandler: ((event: MessageEvent) => void) | null = null;
@@ -264,10 +269,13 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
             clearTimeout(iframeEventTimeoutId ?? undefined);
             iframeEventTimeoutId = null;
 
+            // parent→iframe の script / configure は structured clone オブジェクトのまま送る。
+            // JSON.stringify を排除し、巨大な responses / appJsSource のコピーを高速化する。
+            // (bootstrap HTML と frame-messenger はどちらも文字列 / オブジェクト両受理)
             // 1. Inject in-iframe init IIFE
             if (currentIframe.contentWindow) {
               currentIframe.contentWindow.postMessage(
-                JSON.stringify({ action: "script", script: iframeInitSource }),
+                { action: "script", script: iframeInitSource },
                 "*",
               );
               // 2. Send configure with responses, urlParams, and indexHtml.
@@ -276,17 +284,17 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
               //    `media` attribute (e.g. high-contrast.css is gated behind
               //    `(forced-colors: active)`).
               currentIframe.contentWindow.postMessage(
-                JSON.stringify({
+                {
                   action: "configure",
                   responses,
                   urlParams,
                   indexHtml,
-                }),
+                },
                 "*",
               );
               // 3. Inject drawio app.min.js (defines App / Editor / EditorUi / Graph / mx*)
               currentIframe.contentWindow.postMessage(
-                JSON.stringify({ action: "script", script: appJsSource }),
+                { action: "script", script: appJsSource },
                 "*",
               );
               // 4. Trigger drawio's main entry — App.main() bootstraps the editor
@@ -296,11 +304,11 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
               //    we invoke App.main() directly. Using setTimeout(0) defers
               //    to after the app.min.js script element is fully evaluated.
               currentIframe.contentWindow.postMessage(
-                JSON.stringify({
+                {
                   action: "script",
                   script:
                     "setTimeout(function(){ try { App.main(); } catch (e) { console.error('App.main() failed', e); } }, 0);",
-                }),
+                },
                 "*",
               );
             }
@@ -441,9 +449,18 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
       const drawioDir = pluginDir ? `${pluginDir}/drawio` : "drawio";
       const iframeInitPath = pluginDir ? `${pluginDir}/iframe-init.js` : "iframe-init.js";
 
-      // Create asset loader
-      const loader = createDrawioAssetLoader(app.vault.adapter, drawioDir);
-      assetLoaderDispose = () => loader.dispose();
+      // アセット取得は注入された provider (DrawioAssetCache) 経由。未注入時のみ
+      // 従来の自前ローダにフォールバックする (後方互換)。注入された cache は
+      // main.ts が所有するため bridge からは dispose しない。
+      let provider: DrawioAssetProvider;
+      if (assetProvider) {
+        provider = assetProvider;
+        assetLoaderDispose = null;
+      } else {
+        const loader = createDrawioAssetLoader(app.vault.adapter, drawioDir);
+        provider = loader;
+        assetLoaderDispose = () => loader.dispose();
+      }
 
       // Use a ref so the message handler closure can see the latest iframe
       const iframeRef: { current: HTMLIFrameElement | null } = { current: null };
@@ -457,7 +474,7 @@ export function createDrawioBridge(app: App, pluginDir?: string): DrawioBridge {
 
         try {
           // Load all drawio assets
-          const bundle = await loader.loadAll();
+          const bundle = await provider.loadAll();
           appJsSource = bundle.appJsSource;
           responses = bundle.responses;
           indexHtml = bundle.indexHtml;

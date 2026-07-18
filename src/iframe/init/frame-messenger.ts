@@ -80,11 +80,19 @@ export function createIframeFrameMessenger<TIn = unknown, TOut = unknown>(
       return;
     }
 
+    // 親→iframe メッセージは JSON 文字列と structured clone オブジェクトの両方を受理する。
+    // 巨大な configure ペイロードはオブジェクトのまま送られ、JSON.parse を回避する。
     let parsed: TIn;
-    try {
-      parsed = JSON.parse(event.data as string) as TIn;
-    } catch {
-      console.warn("[frame-messenger] Failed to JSON.parse incoming message data:", event.data);
+    if (typeof event.data === "string") {
+      try {
+        parsed = JSON.parse(event.data) as TIn;
+      } catch {
+        console.warn("[frame-messenger] Failed to JSON.parse incoming message data:", event.data);
+        return;
+      }
+    } else if (event.data !== null && typeof event.data === "object") {
+      parsed = event.data as TIn;
+    } else {
       return;
     }
 
