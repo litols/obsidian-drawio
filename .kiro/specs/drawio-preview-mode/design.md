@@ -390,6 +390,7 @@ export function panBy(state: ZoomPanState, dx: number, dy: number): ZoomPanState
 - Editor→Preview: 進行中の保存 (`handleSave` / export roundtrip) を Promise チェーン `pendingSaves` として追跡し、完了を await → `readDrawioFile` で再読込 → プレビュー描画 (要件 3.3, 3.4)
 - プレビュー中の外部変更: modify → 再描画 (dirty 概念なし・無条件)、rename → file 追跡、delete → 通知 + detach (要件 4.1-4.3)。編集モード中は既存分岐を変更しない
 - 破棄規律: モード切替と `onUnloadFile` で旧モード資源 (preview iframe / editor bridge / React mount) を必ず dispose
+- 編集意図が明示的な導線 (「draw.io で編集」コンテキストメニュー / 新規ダイアグラム作成) は `defaultOpenMode` に依らずエディタ直開きとする (`openInDrawioView(file, { mode: "editor" })`)。通常のファイルオープンのみ既定表示モードに従う (実装時 UX 決定)
 
 **Contracts**: State [x]
 
