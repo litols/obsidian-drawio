@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { DataAdapter } from "obsidian";
 
 // obsidian はスタブ済 (vitest.config.ts の stub-obsidian プラグイン)
-import { createDrawioAssetLoader, type DrawioAssetLoader } from "./drawio-asset-loader";
+import {
+  createDrawioAssetLoader,
+  EDITOR_ASSET_EXCLUDES,
+  isExcludedEditorAsset,
+  type DrawioAssetLoader,
+} from "./drawio-asset-loader";
 
 // ------- ヘルパ: DataAdapter のモック構築 -------
 
@@ -313,5 +318,83 @@ describe("createDrawioAssetLoader", () => {
     const bundle = await loader.loadAll();
     const svg = bundle.responses.find((r) => r.href.endsWith(".svg"));
     expect(svg?.mediaType).toBe("image/svg+xml");
+  });
+
+  // ── 11. exclude 述語で対象ファイルがバンドルに含まれない ──
+  it("exclude 述語にマッチする href は responses に含まれず read もされない", async () => {
+    const fs: FakeFs = {
+      ...makeFs(),
+      [`${DRAWIO_DIR}/js/viewer-static.min.js`]: { type: "text", content: "// viewer" },
+      [`${DRAWIO_DIR}/js/integrate.min.js`]: { type: "text", content: "// integrate" },
+    };
+    const adapter = buildMockAdapter(fs);
+    loader = createDrawioAssetLoader(adapter, DRAWIO_DIR, {
+      exclude: (href) => href.startsWith("js/viewer") || href.startsWith("js/integrate"),
+    });
+
+    const bundle = await loader.loadAll();
+    expect(bundle.responses.find((r) => r.href === "js/viewer-static.min.js")).toBeUndefined();
+    expect(bundle.responses.find((r) => r.href === "js/integrate.min.js")).toBeUndefined();
+    // app.min.js は除外対象外なので残る
+    expect(bundle.responses.find((r) => r.href === "js/app.min.js")).toBeDefined();
+    // 除外された 2 ファイルの内容は read されていない
+    expect(adapter.read).not.toHaveBeenCalledWith(`${DRAWIO_DIR}/js/viewer-static.min.js`);
+    expect(adapter.read).not.toHaveBeenCalledWith(`${DRAWIO_DIR}/js/integrate.min.js`);
+  });
+
+  it("EDITOR_ASSET_EXCLUDES 適用で design のマニフェスト対象が除外される", async () => {
+    const fs: FakeFs = {
+      ...makeFs(),
+      [`${DRAWIO_DIR}/js/integrate.min.js`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/js/viewer.min.js`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/js/viewer-static.min.js`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/service-worker.js`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/workbox-abc123.js`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/META-INF/context.xml`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/WEB-INF/web.xml`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/connect/jira/app.js`]: { type: "text", content: "x" },
+      [`${DRAWIO_DIR}/js/app.min.js.map`]: { type: "text", content: "x" },
+    };
+    const adapter = buildMockAdapter(fs);
+    loader = createDrawioAssetLoader(adapter, DRAWIO_DIR, { exclude: isExcludedEditorAsset });
+
+    const bundle = await loader.loadAll();
+    const hrefs = bundle.responses.map((r) => r.href);
+    expect(hrefs).not.toContain("js/integrate.min.js");
+    expect(hrefs).not.toContain("js/viewer.min.js");
+    expect(hrefs).not.toContain("js/viewer-static.min.js");
+    expect(hrefs).not.toContain("service-worker.js");
+    expect(hrefs).not.toContain("workbox-abc123.js");
+    expect(hrefs).not.toContain("META-INF/context.xml");
+    expect(hrefs).not.toContain("WEB-INF/web.xml");
+    expect(hrefs).not.toContain("connect/jira/app.js");
+    expect(hrefs).not.toContain("js/app.min.js.map");
+    // 通常アセットは残る
+    expect(hrefs).toContain("js/app.min.js");
+    expect(hrefs).toContain("styles/main.css");
+  });
+});
+
+describe("isExcludedEditorAsset", () => {
+  it("マニフェスト対象を true、通常アセットを false と判定する", () => {
+    expect(isExcludedEditorAsset("js/integrate.min.js")).toBe(true);
+    expect(isExcludedEditorAsset("js/viewer.min.js")).toBe(true);
+    expect(isExcludedEditorAsset("js/viewer-static.min.js")).toBe(true);
+    expect(isExcludedEditorAsset("service-worker.js")).toBe(true);
+    expect(isExcludedEditorAsset("service-worker.js.map")).toBe(true);
+    expect(isExcludedEditorAsset("workbox-1a2b3c.js")).toBe(true);
+    expect(isExcludedEditorAsset("META-INF/context.xml")).toBe(true);
+    expect(isExcludedEditorAsset("WEB-INF/web.xml")).toBe(true);
+    expect(isExcludedEditorAsset("connect/jira/x.js")).toBe(true);
+    expect(isExcludedEditorAsset("js/app.min.js.map")).toBe(true);
+
+    expect(isExcludedEditorAsset("js/app.min.js")).toBe(false);
+    expect(isExcludedEditorAsset("index.html")).toBe(false);
+    expect(isExcludedEditorAsset("styles/grapheditor.css")).toBe(false);
+    expect(isExcludedEditorAsset("js/stencils.min.js")).toBe(false);
+  });
+
+  it("EDITOR_ASSET_EXCLUDES は空でない (revert 容易性のため 1 定数に集約)", () => {
+    expect(EDITOR_ASSET_EXCLUDES.length).toBeGreaterThan(0);
   });
 });

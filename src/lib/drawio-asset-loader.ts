@@ -67,10 +67,45 @@ export interface DrawioAssetLoader {
   dispose(): void;
 }
 
+export interface DrawioAssetLoaderOptions {
+  /**
+   * href (drawioDir からの相対パス) を受け取り true を返したファイルを
+   * 列挙段階でスキップする。読み込み前に評価されるためディスク I/O も省かれる。
+   */
+  exclude?: (href: string) => boolean;
+}
+
 export type CreateDrawioAssetLoader = (
   adapter: DataAdapter,
   drawioDir: string,
+  options?: DrawioAssetLoaderOptions,
 ) => DrawioAssetLoader;
+
+/** href の末尾セグメント (ファイル名) を返す */
+function basename(href: string): string {
+  const idx = href.lastIndexOf("/");
+  return idx === -1 ? href : href.slice(idx + 1);
+}
+
+/**
+ * エディタ実行に構造的に不要と確認済みのアセット除外マニフェスト (design.md 参照)。
+ * 各要素が 1 除外ルール。除外起因の不具合時は該当行を削除するだけで revert できる。
+ */
+export const EDITOR_ASSET_EXCLUDES: ReadonlyArray<(href: string) => boolean> = [
+  (h) => h === "js/integrate.min.js", // Teams 統合ビルド (22MB)
+  (h) => h === "js/viewer.min.js", // スタンドアロン viewer (エディタ iframe では未使用)
+  (h) => h === "js/viewer-static.min.js", // 同上 (プレビューは Cache が別経路で読む)
+  (h) => h === "service-worker.js", // SW 本体 (sandbox iframe で無効)
+  (h) => basename(h).startsWith("workbox-"), // SW ランタイム
+  (h) => h.startsWith("META-INF/") || h.startsWith("WEB-INF/"), // サーバ設定
+  (h) => h.startsWith("connect/"), // SaaS コネクタ
+  (h) => h.endsWith(".map"), // sourcemap (service-worker.js.map 含む)
+];
+
+/** EDITOR_ASSET_EXCLUDES のいずれかにマッチすれば true */
+export function isExcludedEditorAsset(href: string): boolean {
+  return EDITOR_ASSET_EXCLUDES.some((rule) => rule(href));
+}
 
 // ──────────────────────────────────────────────
 // ファクトリ実装
@@ -79,6 +114,7 @@ export type CreateDrawioAssetLoader = (
 export function createDrawioAssetLoader(
   adapter: DataAdapter,
   drawioDir: string,
+  options?: DrawioAssetLoaderOptions,
 ): DrawioAssetLoader {
   let disposed = false;
   // 一時バッファへの参照 (dispose で解放)
@@ -145,6 +181,9 @@ export function createDrawioAssetLoader(
 
           // href は drawioDir からの相対パス
           const href = filePath.startsWith(dir + "/") ? filePath.slice(dir.length + 1) : filePath;
+
+          // 除外マニフェストにマッチするファイルは読み込まずスキップ (列挙段階の除外)
+          if (options?.exclude?.(href)) return null;
 
           let source: string;
           if (mediaTypeInfo.isBinary) {
