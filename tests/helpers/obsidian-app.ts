@@ -61,6 +61,17 @@ export async function openFile(page: Page, vaultRelativePath: string): Promise<v
   }, vaultRelativePath);
 }
 
+/**
+ * drawio-preview-mode 導入後、ファイルは既定でプレビュー表示になる。
+ * エディタ挙動を検証する既存 E2E 用に、編集モードへ遷移させる。
+ */
+export async function enterDrawioEditor(page: Page): Promise<void> {
+  await waitForLayoutReady(page);
+  await page.evaluate(() => {
+    window.app.commands.executeCommandById("obsidian-drawio:drawio-enter-editor");
+  });
+}
+
 export async function isPluginEnabled(page: Page, id: string): Promise<boolean> {
   return page.evaluate((pluginId) => window.app.plugins.enabledPlugins.has(pluginId), id);
 }

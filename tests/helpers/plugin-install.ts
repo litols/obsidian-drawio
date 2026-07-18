@@ -34,7 +34,14 @@ export function installPluginIntoVault(options?: InstallPluginOptions): { plugin
   const pluginDir = resolve(vaultPath, ".obsidian", "plugins", pluginId);
   mkdirSync(pluginDir, { recursive: true });
 
-  const items = ["main.js", "iframe-init.js", "manifest.json", "styles.css", "drawio"];
+  const items = [
+    "main.js",
+    "iframe-init.js",
+    "preview-init.js",
+    "manifest.json",
+    "styles.css",
+    "drawio",
+  ];
   for (const item of items) {
     const src = resolve(distDir, item);
     const dest = resolve(pluginDir, item);
