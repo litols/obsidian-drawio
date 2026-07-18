@@ -6,6 +6,39 @@ import { openFile } from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 import type { Page } from "@playwright/test";
 
+/**
+ * 実行中プラグインの defaultOpenMode を in-memory で書き換える。
+ * onLoadFile は in-memory settings を参照するため saveSettings は不要。
+ * data.json を汚さないので共有 vault を使う並列テストに影響しない。
+ */
+async function setDefaultOpenMode(page: Page, mode: "preview" | "editor"): Promise<void> {
+  // プラグインの settings が用意される (onload 完了) まで待ってから設定する。
+  // 負荷時に onload 前へ割り込むと no-op になり defaultOpenMode が反映されないため。
+  await page.waitForFunction(
+    () => {
+      const p = (
+        globalThis as unknown as {
+          app?: { plugins?: { plugins?: Record<string, { settings?: { drawio?: unknown } }> } };
+        }
+      ).app?.plugins?.plugins?.["obsidian-drawio"];
+      return !!p?.settings?.drawio;
+    },
+    { timeout: 30_000 },
+  );
+  await page.evaluate((m) => {
+    interface PluginShape {
+      settings: { drawio?: { defaultOpenMode?: string } };
+    }
+    const obsidianApp = (
+      globalThis as unknown as { app: { plugins: { plugins: Record<string, PluginShape> } } }
+    ).app;
+    const drawio = obsidianApp.plugins.plugins["obsidian-drawio"];
+    if (drawio?.settings?.drawio) {
+      drawio.settings.drawio.defaultOpenMode = m;
+    }
+  }, mode);
+}
+
 /** 親ウィンドウが捕捉した preview iframe → 親メッセージから指定 event を待つ。 */
 async function waitForPreviewEvent(page: Page, event: string, timeoutMs = 30_000): Promise<void> {
   await expect
@@ -63,6 +96,46 @@ test("preview-mode: single-page .drawio.svg opens as an image preview", async ()
   await expect(img).toHaveAttribute("src", /.+/);
   expect(await window.locator("iframe[data-drawio]").count()).toBe(0);
   expect(await window.locator("iframe[data-drawio-preview]").count()).toBe(0);
+
+  await app.close();
+});
+
+test("preview-mode: defaultOpenMode=editor makes a newly opened file open in the editor", async () => {
+  installPluginIntoVault();
+  const { app, window } = await launchObsidianForVault(vaultRoot());
+  await installMessageCapture(window);
+
+  // 既定表示モードをエディタに変更後、新たにファイルを開く (要件 1.4, 6.3)
+  await setDefaultOpenMode(window, "editor");
+  await openFile(window, "samples/empty.drawio");
+
+  // エディタ iframe が直接起動し、プレビュー iframe は生成されない
+  await window.locator("iframe[data-drawio]").waitFor({ state: "attached", timeout: 30_000 });
+  expect(await window.locator("iframe[data-drawio-preview]").count()).toBe(0);
+
+  await app.close();
+});
+
+test("preview-mode: multi-page .drawio preview provides pages toolbar and zoom controls", async () => {
+  installPluginIntoVault();
+  const { app, window } = await launchObsidianForVault(vaultRoot());
+  await installMessageCapture(window);
+
+  await openFile(window, "samples/multipage.drawio");
+
+  await window
+    .locator("iframe[data-drawio-preview]")
+    .waitFor({ state: "attached", timeout: 30_000 });
+  await waitForPreviewEvent(window, "preview-ready", 30_000);
+
+  const frame = window.frameLocator("iframe[data-drawio-preview]");
+  // GraphViewer が図を描画している
+  await expect(frame.locator("svg").first()).toBeVisible({ timeout: 15_000 });
+  // toolbar のズーム等ボタン (img.geAdaptiveAsset) が存在する = zoom 手段の提供 (要件 2.1-2.3)
+  await expect(frame.locator("img.geAdaptiveAsset").first()).toBeVisible({ timeout: 15_000 });
+  expect(await frame.locator("img.geAdaptiveAsset").count()).toBeGreaterThanOrEqual(3);
+  // ページ切替 UI: pages toolbar のページ表示 "1 / 2" が存在する (要件 2.4)。クリックは行わない
+  await expect(frame.getByText(/\d+\s*\/\s*\d+/).first()).toBeVisible({ timeout: 15_000 });
 
   await app.close();
 });

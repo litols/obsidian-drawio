@@ -63,6 +63,8 @@ interface PreviewOutbound {
 const DEFAULT_GRAPH_CONFIG: Record<string, unknown> = {
   toolbar: "pages zoom layers",
   "toolbar-nofullscreen": true,
+  // プレビューペインでは toolbar を常時表示する (既定の hover 自動非表示を無効化)。
+  "toolbar-nohide": true,
   nav: true,
   resize: true,
   "auto-fit": true,
