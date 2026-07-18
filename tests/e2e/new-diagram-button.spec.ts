@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import { revealFileExplorer, getActiveFilePath } from "../helpers/obsidian-app.ts";
+import { revealFileExplorer, getActiveFilePath, enterDrawioEditor } from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
 // 今回追加: file explorer の「新規ノート」ボタン横に「新規ダイアグラム」ボタンを
@@ -37,15 +37,17 @@ test("new-diagram-button: button sits next to 'New note' and creates a diagram",
   });
   expect(position).toBe(1);
 
-  // クリックすると新規 .drawio が作成され編集ビューで開く
+  // クリックすると新規 .drawio が作成され (既定の) プレビューで開く
   await btn.click();
-
-  const handle = getDrawioFrame(window);
-  await handle.waitForReady(30_000);
 
   await expect
     .poll(() => getActiveFilePath(window), { timeout: 10_000 })
     .toMatch(/Untitled.*\.drawio$/);
+
+  // 編集モードへ遷移してエディタ iframe を起動する
+  await enterDrawioEditor(window);
+  const handle = getDrawioFrame(window);
+  await handle.waitForReady(30_000);
 
   await app.close();
 });

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import { openFile } from "../helpers/obsidian-app.ts";
+import { openFile, enterDrawioEditor } from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
 // 今回追加: drawio 読み込み中のインジケータを、左上テキストから
@@ -13,6 +13,8 @@ test("loading-spinner: a centered spinner is shown while drawio loads and remove
   await installMessageCapture(window);
 
   await openFile(window, "samples/empty.drawio");
+  // 既定はプレビュー表示。エディタ読み込み中スピナーを見るため編集モードへ遷移する
+  await enterDrawioEditor(window);
 
   // 読み込み中はスピナーが表示される
   const spinner = window.locator(".drawio-loading-spinner");

@@ -7,18 +7,20 @@ import { vaultRoot, type SampleName } from "../helpers/vault-fs.ts";
 
 const FORMATS: SampleName[] = ["empty.drawio", "sample.drawio.svg", "sample.drawio.png"];
 
-test("three-formats-roundtrip: all three formats open and iframe becomes ready", async () => {
+/**
+ * EDITOR_ASSET_EXCLUDES 適用後も、3 形式すべてでエディタが従来どおり起動する (init 到達) ことを
+ * 確認する回帰テスト (要件 3.5, 5.2)。除外が必須アセットを落としていれば init に到達しない。
+ */
+test("editor-exclude-regression: editor still boots for all three formats after asset exclusion", async () => {
   installPluginIntoVault();
   const { app, window } = await launchObsidianForVault(vaultRoot());
-  await installMessageCapture(window);
 
   for (const fmt of FORMATS) {
+    await installMessageCapture(window);
     await openFile(window, `samples/${fmt}`);
-    // 既定はプレビュー表示なので編集モードへ遷移してエディタ iframe を起動する
     await enterDrawioEditor(window);
-
-    const handle = getDrawioFrame(window);
-    await handle.waitForReady(30_000);
+    await window.locator("iframe[data-drawio]").waitFor({ state: "attached", timeout: 30_000 });
+    await getDrawioFrame(window).waitForReady(60_000);
   }
 
   await app.close();

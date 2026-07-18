@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import { openFile } from "../helpers/obsidian-app.ts";
+import { openFile, enterDrawioEditor } from "../helpers/obsidian-app.ts";
 import { vaultRoot, samplePath, writeExternal } from "../helpers/vault-fs.ts";
 
 test("external-sync-reload: external write triggers reload banner", async () => {
@@ -11,6 +11,8 @@ test("external-sync-reload: external write triggers reload banner", async () => 
   await installMessageCapture(window);
 
   await openFile(window, "samples/empty.drawio");
+  // banner は編集モードの挙動なので編集モードへ遷移する
+  await enterDrawioEditor(window);
 
   const handle = getDrawioFrame(window);
   await handle.waitForReady(30_000);
