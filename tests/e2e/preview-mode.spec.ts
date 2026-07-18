@@ -12,16 +12,22 @@ import type { Page } from "@playwright/test";
  * data.json を汚さないので共有 vault を使う並列テストに影響しない。
  */
 async function setDefaultOpenMode(page: Page, mode: "preview" | "editor"): Promise<void> {
-  // プラグインの settings が用意される (onload 完了) まで待ってから設定する。
-  // 負荷時に onload 前へ割り込むと no-op になり defaultOpenMode が反映されないため。
+  // onload 完了を待ってから設定する。plugin.settings の初期値は DEFAULT_SETTINGS で
+  // 既に .drawio を持つため、settings.drawio の有無では onload 前後を区別できない。
+  // onload 終盤で生成される assetCache の存在を onload 完了の指標として待つ
+  // (これより前は onload が this.settings を差し替えるため in-memory 変更が失われる)。
   await page.waitForFunction(
     () => {
       const p = (
         globalThis as unknown as {
-          app?: { plugins?: { plugins?: Record<string, { settings?: { drawio?: unknown } }> } };
+          app?: {
+            plugins?: {
+              plugins?: Record<string, { assetCache?: unknown; settings?: { drawio?: unknown } }>;
+            };
+          };
         }
       ).app?.plugins?.plugins?.["obsidian-drawio"];
-      return !!p?.settings?.drawio;
+      return !!p?.assetCache && !!p?.settings?.drawio;
     },
     { timeout: 30_000 },
   );
