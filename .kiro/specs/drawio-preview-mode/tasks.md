@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Foundation: 設定モデルとプレビュー基盤の純関数
+- [x] 1. Foundation: 設定モデルとプレビュー基盤の純関数
 - [x] 1.1 (P) 既定表示モード設定の追加
   - 設定データモデルに既定表示モード (プレビュー / エディタ) を追加し、初期値をプレビューとする
   - 設定マイグレーションで欠損・不正値をプレビューに補完する
@@ -19,7 +19,7 @@
   - _Requirements: 2.1, 2.2, 2.3_
   - _Boundary: zoom-pan_
 
-- [ ] 2. アセット読み込み基盤の強化
+- [x] 2. アセット読み込み基盤の強化
 - [x] 2.1 アセットローダの除外マニフェスト対応
   - アセットローダに除外述語オプションを追加し、列挙段階で対象外ファイルをスキップする
   - design.md の EDITOR_ASSET_EXCLUDES 初期マニフェストを 1 定数として定義する
@@ -39,7 +39,7 @@
   - _Depends: 2.2_
   - _Boundary: drawio-bridge, frame-messenger_
 
-- [ ] 3. プレビュー表示経路
+- [x] 3. プレビュー表示経路
 - [x] 3.1 (P) preview iframe 内 init スクリプトとビルド
   - viewer iframe 内で GraphViewer を起動する init スクリプトを実装する (render 受信 → 描画、ready / error を親へ通知。frame-globals を流用し DRAWIO_BASE_URL を設定)
   - GraphViewer は toolbar (pages / zoom / layers) 付きで生成し、ズーム・パン・ページ切替・初期フィットを組み込み機能で提供する
@@ -95,7 +95,7 @@
   - プレビュー中 external-change (modify / rename / delete) の 3 分岐が検証されている
   - _Requirements: 1.1, 1.4, 3.3, 3.4, 4.1, 4.2, 4.3_
 
-- [ ] 5. E2E 検証と回帰確認
+- [x] 5. E2E 検証と回帰確認
 - [x] 5.1 プレビュー E2E
   - .drawio を開くと GraphViewer プレビューが表示され、zoom / pages toolbar が動作し、エディタ用 iframe が生成されないことを検証する
   - 単一ページ .drawio.svg は画像プレビューで即時表示、複数ページファイルはページ切替ができることを検証する
