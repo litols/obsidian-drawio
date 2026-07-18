@@ -297,8 +297,7 @@ export class DrawioView extends FileView {
 
     const container = this.contentEl;
     container.empty();
-    container.style.padding = "0";
-    container.style.height = "100%";
+    this.ensureFullContentArea();
 
     this.ensureModeAction();
 
@@ -328,6 +327,7 @@ export class DrawioView extends FileView {
   /** フルエディタ (drawio-bridge) をマウントする。アセットは plugin.assetCache を注入。 */
   private async mountEditor(file: TFile, xml: string): Promise<void> {
     const container = this.contentEl;
+    this.ensureFullContentArea();
 
     // drawio 起動時 configure protocol に渡す payload を先に組み立てる。
     // ここに詰めた設定 (defaultLibraries など) が Sidebar.defaultEntries に反映される。
@@ -372,9 +372,22 @@ export class DrawioView extends FileView {
     }
   }
 
+  /**
+   * プレビュー/エディタ領域をビューのコンテンツ領域全体に広げる (要件 2.6)。
+   * padding を除去し幅・高さ 100% を占有させる。ビューのリサイズには子 (iframe / React)
+   * の 100% 指定で追従する。
+   */
+  private ensureFullContentArea(): void {
+    const container = this.contentEl;
+    container.style.padding = "0";
+    container.style.width = "100%";
+    container.style.height = "100%";
+  }
+
   /** 戦略選択に従い画像プレビュー or GraphViewer プレビューを排他マウントする (要件 1.2, 1.3)。 */
   private async mountPreview(file: TFile, result: ReadDrawioResult): Promise<void> {
     const container = this.contentEl;
+    this.ensureFullContentArea();
     const strategy = selectPreviewStrategy(result.format, result.xml);
 
     if (strategy === "image") {
@@ -411,6 +424,7 @@ export class DrawioView extends FileView {
     this.disposePreviewResources();
     const container = this.contentEl;
     container.empty();
+    this.ensureFullContentArea();
     this.previewReactDispose = this.plugin.reactMountManager.mount(
       container,
       React.createElement(PreviewErrorPanel, {

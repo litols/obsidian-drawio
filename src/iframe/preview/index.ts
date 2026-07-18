@@ -66,7 +66,11 @@ const DEFAULT_GRAPH_CONFIG: Record<string, unknown> = {
   // プレビューペインでは toolbar を常時表示する (既定の hover 自動非表示を無効化)。
   "toolbar-nohide": true,
   nav: true,
-  resize: true,
+  // resize:true は GraphViewer にコンテナを図の内容サイズへ縮小させてしまう。
+  // resize:false + auto-fit + コンテナの明示 height(100%) で、コンテナ全体を占有しつつ
+  // 図を領域内にフィット表示する (要件 2.6)。center で領域内に中央寄せする。
+  resize: false,
+  center: true,
   "auto-fit": true,
 };
 

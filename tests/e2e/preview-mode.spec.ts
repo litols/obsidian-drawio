@@ -143,5 +143,18 @@ test("preview-mode: multi-page .drawio preview provides pages toolbar and zoom c
   // ページ切替 UI: pages toolbar のページ表示 "1 / 2" が存在する (要件 2.4)。クリックは行わない
   await expect(frame.getByText(/\d+\s*\/\s*\d+/).first()).toBeVisible({ timeout: 15_000 });
 
+  // 全面表示 (要件 2.6): GraphViewer の描画ホストが iframe 幅をほぼ占有する
+  // (resize:true だとホストが図サイズへ縮小し「小さく」表示される回帰のガード)。
+  const fill = await window.evaluate(() => {
+    const ifr = document.querySelector("iframe[data-drawio-preview]") as HTMLIFrameElement | null;
+    const iframeW = ifr?.getBoundingClientRect().width ?? 0;
+    return { iframeW };
+  });
+  const hostW = await frame
+    .locator("[data-drawio-preview-host]")
+    .evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  expect(fill.iframeW).toBeGreaterThan(200);
+  expect(hostW).toBeGreaterThanOrEqual(Math.round(fill.iframeW * 0.9));
+
   await app.close();
 });
