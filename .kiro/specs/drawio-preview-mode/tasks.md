@@ -123,7 +123,7 @@
   - _Depends: 6.1_
 
 - [ ] 7. アセット段階配信による OOM 修正 (追補: 2026-07-19 クラッシュ調査結果)
-- [ ] 7.1 チャンク配信プロトコルと iframe 側 Blob 化
+- [x] 7.1 チャンク配信プロトコルと iframe 側 Blob 化
   - bridge がアセットをコア群/テール群の 2 段でチャンク分割送信し、コア完了 → CSS 注入 → app 起動 → init 後にテール配信の順序を実装する
   - request-manager がチャンク受信ごとに即 Blob URL 化してソース文字列を破棄し、href→URL Map のみ保持する
   - bridge ready 前の applyTheme による "sendMessage() called before mount" warn を解消する

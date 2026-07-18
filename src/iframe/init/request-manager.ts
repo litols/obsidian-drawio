@@ -1,16 +1,22 @@
 /**
- * iframe-init/request-manager (task 2.3)
+ * iframe-init/request-manager
  *
  * In-iframe code — patches DOM prototype APIs and XMLHttpRequest so that all
- * relative resource URLs are resolved against the Responses table supplied by
- * the parent via {action:"configure"}.
+ * relative resource URLs are resolved against a href→Blob-URL Map that is
+ * populated incrementally as the parent streams asset chunks.
+ *
+ * OOM 対策 (要件 5.5, 5.6): アセットは親から `{action:"assets"}` チャンクで逐次届く。
+ * `ingest()` は受信ごとに各エントリを即座に Blob URL へ変換し、**ソース文字列を保持しない**
+ * (href→URL の Map のみ保持)。Blob は Chromium の blob storage 管理下に置かれ V8 ヒープを
+ * 占有しないため、単一巨大 postMessage による renderer メモリスパイクを回避する。
+ * 例外: CSP が `style-src blob:` を禁じるため text/css のみ `<style>` 注入用にテキストを保持する
+ * (styles/ 群は数百 KB でありメモリ主因ではない)。
  *
  * Allowed imports (in-iframe IIFE build):
  *   - ../shared/asset-types
  *   - Browser globals only (Blob, URL, Proxy, Reflect, XMLHttpRequest, DOM prototypes)
  *
- * Requirements: 1.1, 1.3, 1.4, 3.2, 4.2
- * Design: iframe-init/request-manager component
+ * Requirements: 1.1, 1.3, 1.4, 3.2, 4.2, 5.5, 5.6
  */
 
 import type { DrawioResponseEntry } from "../shared/asset-types";
@@ -21,6 +27,19 @@ export interface RequestManager {
   /** Patches DOM prototype APIs and XHR to intercept resource requests. */
   interceptRequests(): void;
   /**
+   * Blob-ize and register a batch of asset entries. Each entry's source string
+   * is converted to a Blob URL immediately and then dropped (only href→URL is
+   * kept). text/css entries additionally keep their decoded text for `<style>`
+   * injection (CSP forbids blob: in style-src).
+   */
+  ingest(entries: readonly DrawioResponseEntry[]): void;
+  /**
+   * Pre-inject the stylesheets declared by drawio's index.html `<link
+   * rel="stylesheet">` tags as inline `<style>` elements (with url(...)
+   * rewritten to Blob URLs). Call after the core asset group is ingested.
+   */
+  injectStylesheets(indexHtml: string): void;
+  /**
    * Best-effort: revokes all issued Blob URLs and clears the cache.
    * The iframe is destroyed by the parent at dispose time, so prototype
    * restoration is NOT attempted (design decision — see design.md risk section).
@@ -28,75 +47,38 @@ export interface RequestManager {
   dispose(): void;
 }
 
-export type CreateRequestManager = (responses: readonly DrawioResponseEntry[]) => RequestManager;
+export type CreateRequestManager = () => RequestManager;
 
 // ─── URL passthrough predicates ──────────────────────────────────────────────
 
 /**
  * Returns true when the URL must be passed through without modification.
- * Passthrough rules (design section "URL 判定"):
- *   - app://
- *   - data:
- *   - https?: or http:
- *   - protocol-relative //
- *   - #default#VML (and # fragments in general)
  */
 function isPassthroughUrl(url: string): boolean {
   if (url.startsWith("app://")) return true;
   if (url.startsWith("data:")) return true;
+  if (url.startsWith("blob:")) return true;
   if (/^https?:/.test(url)) return true;
   if (url.startsWith("//")) return true;
   if (url.startsWith("#")) return true;
   return false;
 }
 
-// ─── Blob URL resolution ─────────────────────────────────────────────────────
+// ─── Blob-ization ─────────────────────────────────────────────────────────────
 
 /**
- * Resolves `url` against `responses`.
- *
- * Resolution rules:
- *   1. Passthrough URLs → return as-is.
- *   2. Cache hit → return cached Blob/data URL.
- *   3. Responses match found:
- *      - If mediaType ends with ";base64" AND source.length < 1024 →
- *        return inline data URL (no Blob allocation).
- *      - Otherwise create Blob (decoding base64 if necessary) and return
- *        URL.createObjectURL result; cache it.
- *   4. No match → console.warn, return original URL.
- *
- * Exported for unit-testing of the resolution logic independently of
- * the prototype patches.
+ * Converts an asset entry to a URL string (Blob URL, or a small inline data URL
+ * for tiny base64 entries) without retaining the source. Exported for testing.
  */
-export function resolveResourceUrl(
-  url: string,
-  responses: readonly DrawioResponseEntry[],
-  cache: Map<string, string>,
-): string {
-  if (isPassthroughUrl(url)) return url;
-
-  // Cache hit
-  const cached = cache.get(url);
-  if (cached !== undefined) return cached;
-
-  // Responses table lookup
-  const entry = responses.find((r) => r.href === url);
-  if (entry === undefined) {
-    console.warn("[drawio-frame] request-manager: unmatched URL:", url);
-    return url;
-  }
-
+export function blobifyEntry(entry: DrawioResponseEntry): string {
   const isBase64 = entry.mediaType.endsWith(";base64");
 
   // Small base64 entries → inline data URL (no Blob allocation)
   if (isBase64 && entry.source.length < 1024) {
     const rawMime = entry.mediaType.replace(/;base64$/, "");
-    const dataUrl = `data:${rawMime};base64,${entry.source}`;
-    cache.set(url, dataUrl);
-    return dataUrl;
+    return `data:${rawMime};base64,${entry.source}`;
   }
 
-  // Text or large base64 → Blob URL
   let blob: Blob;
   if (isBase64) {
     const rawMime = entry.mediaType.replace(/;base64$/, "");
@@ -106,121 +88,104 @@ export function resolveResourceUrl(
   } else {
     blob = new Blob([entry.source], { type: entry.mediaType });
   }
+  return URL.createObjectURL(blob);
+}
 
-  const blobUrl = URL.createObjectURL(blob);
-  cache.set(url, blobUrl);
-  return blobUrl;
+/**
+ * Resolves `url` against the href→URL map. Passthrough URLs return as-is;
+ * unmatched URLs warn and pass through (graceful degradation until the asset
+ * chunk carrying them arrives). Exported for testing.
+ */
+export function resolveFromMap(url: string, urlMap: Map<string, string>): string {
+  if (isPassthroughUrl(url)) return url;
+  const mapped = urlMap.get(url);
+  if (mapped !== undefined) return mapped;
+  console.warn("[drawio-frame] request-manager: unmatched URL:", url);
+  return url;
 }
 
 // ─── CSS url(...) rewriting ───────────────────────────────────────────────────
 
 /**
- * Rewrites any `url(...)` references inside a CSS property value string.
- * Only the URL fragment is replaced; surrounding quotes are preserved.
- *
- * Exported for use by iframe-init when pre-injecting CSS responses.
+ * Rewrites any `url(...)` references inside a CSS property value string against
+ * the href→URL map. Only the URL fragment is replaced; quotes are preserved.
  */
-export function rewriteCssUrlValue(
-  value: string,
-  responses: readonly DrawioResponseEntry[],
-  cache: Map<string, string>,
-): string {
-  // Match url("..."), url('...'), url(...)
+export function rewriteCssUrlValue(value: string, urlMap: Map<string, string>): string {
   return value.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (_match, quote, rawUrl) => {
-    const resolved = resolveResourceUrl(rawUrl.trim(), responses, cache);
+    const resolved = resolveFromMap(rawUrl.trim(), urlMap);
     return `url(${quote}${resolved}${quote})`;
   });
 }
 
-// ─── CSS / Script inline injection (CSP workaround) ──────────────────────────
-
-/**
- * Returns the response entry whose href matches the given URL (if any).
- */
-function findResponseEntry(
-  url: string,
-  responses: readonly DrawioResponseEntry[],
-): DrawioResponseEntry | undefined {
-  return responses.find((r) => r.href === url);
-}
-
-/**
- * Decodes the entry's source as UTF-8 text. For text mediaTypes the source is
- * already UTF-8; for `;base64` mediaTypes it is base64 and must be decoded.
- */
-function decodeEntryText(entry: DrawioResponseEntry): string {
-  if (entry.mediaType.endsWith(";base64")) {
-    return atob(entry.source);
-  }
-  return entry.source;
-}
-
-/**
- * Tracks links that have already had their CSS injected as `<style>` so that
- * setting href twice does not create duplicate styles.
- */
-const styleInjected = new WeakSet<HTMLLinkElement>();
-
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
-/**
- * Creates a RequestManager for the given Responses table.
- *
- * Calling `interceptRequests()` twice is a no-op (idempotent guard via flag).
- */
-export const createRequestManager: CreateRequestManager = (
-  responses: readonly DrawioResponseEntry[],
-): RequestManager => {
-  /** Shared Blob URL cache: href → blob/data URL */
-  const cache = new Map<string, string>();
+export const createRequestManager: CreateRequestManager = (): RequestManager => {
+  /** href → blob/data URL. The only retained representation of heavy assets. */
+  const urlMap = new Map<string, string>();
+  /** href → decoded CSS text (text/css only; kept for `<style>` injection). */
+  const cssText = new Map<string, string>();
+  /** Links already turned into inline `<style>` (dedupe on repeated href set). */
+  const styleInjected = new WeakSet<HTMLLinkElement>();
 
   let intercepted = false;
 
-  // Saved original setAttribute references
-  let _origLinkSetAttr: typeof HTMLLinkElement.prototype.setAttribute | null = null;
-  let _origScriptSetAttr: typeof HTMLScriptElement.prototype.setAttribute | null = null;
-  let _origImgSetAttr: typeof HTMLImageElement.prototype.setAttribute | null = null;
-  let _origXhrOpen: typeof XMLHttpRequest.prototype.open | null = null;
+  function ingest(entries: readonly DrawioResponseEntry[]): void {
+    for (const entry of entries) {
+      // text/css: keep decoded text for <style> injection (CSP blocks blob: css).
+      if (entry.mediaType.startsWith("text/css")) {
+        const text = entry.mediaType.endsWith(";base64") ? atob(entry.source) : entry.source;
+        cssText.set(entry.href, text);
+      }
+      urlMap.set(entry.href, blobifyEntry(entry));
+      // entry.source is not retained beyond this loop iteration.
+    }
+  }
 
-  // ── interceptRequests ────────────────────────────────────────────────────
+  /** Inline one stylesheet href as a <style> if we hold its CSS text. */
+  function inlineStylesheet(link: HTMLLinkElement, href: string): boolean {
+    const text = cssText.get(href);
+    if (text === undefined) return false;
+    if (!styleInjected.has(link)) {
+      styleInjected.add(link);
+      const styleEl = document.createElement("style");
+      styleEl.textContent = rewriteCssUrlValue(text, urlMap);
+      document.head.appendChild(styleEl);
+    }
+    return true;
+  }
+
+  function injectStylesheets(indexHtml: string): void {
+    if (typeof indexHtml !== "string" || indexHtml.length === 0) return;
+    const doc = new DOMParser().parseFromString(indexHtml, "text/html");
+    const links = Array.from(doc.querySelectorAll("link[rel='stylesheet']"));
+    for (const link of links) {
+      const href = link.getAttribute("href");
+      if (!href) continue;
+      const text = cssText.get(href);
+      if (text === undefined) continue;
+      const media = link.getAttribute("media");
+      const css = rewriteCssUrlValue(text, urlMap);
+      const styleEl = document.createElement("style");
+      styleEl.dataset["drawioInjected"] = href;
+      styleEl.textContent = media ? `@media ${media} {\n${css}\n}` : css;
+      document.head.appendChild(styleEl);
+    }
+  }
 
   function interceptRequests(): void {
-    if (intercepted) {
-      // Idempotency: no-op on second call
-      return;
-    }
+    if (intercepted) return;
     intercepted = true;
 
     // ── HTMLLinkElement: setAttribute("href", ...) ────────────────────────
-    //
-    // CSP workaround: Obsidian's CSP forbids `style-src blob:`. So when a
-    // <link rel="stylesheet"> would point at a blob: URL we instead inject
-    // a sibling <style> element with the CSS text and neutralize the link.
-    _origLinkSetAttr = HTMLLinkElement.prototype.setAttribute;
-    const origLinkSetAttr = _origLinkSetAttr;
+    const origLinkSetAttr = HTMLLinkElement.prototype.setAttribute;
     HTMLLinkElement.prototype.setAttribute = function (qualifiedName: string, value: string): void {
       if (qualifiedName === "href") {
-        // If this link is (or will be) a stylesheet AND we have inline CSS
-        // for the URL, inject as <style> and neutralize the link entirely.
         const rel = this.rel || this.getAttribute("rel");
-        if (rel === "stylesheet" || rel === null) {
-          const entry = findResponseEntry(value, responses);
-          if (entry !== undefined && entry.mediaType.startsWith("text/css")) {
-            if (!styleInjected.has(this)) {
-              styleInjected.add(this);
-              const styleEl = document.createElement("style");
-              const cssText = rewriteCssUrlValue(decodeEntryText(entry), responses, cache);
-              styleEl.textContent = cssText;
-              document.head.appendChild(styleEl);
-            }
-            // Neutralize: drop rel so browser does not fetch as stylesheet
-            // (Obsidian CSP forbids both blob: and data: in style-src).
-            // We do NOT set href at all — leaving it unset prevents any fetch.
-            origLinkSetAttr.call(this, "rel", "");
-            return;
-          }
+        if ((rel === "stylesheet" || rel === null) && inlineStylesheet(this, value)) {
+          origLinkSetAttr.call(this, "rel", "");
+          return;
         }
-        origLinkSetAttr.call(this, qualifiedName, resolveResourceUrl(value, responses, cache));
+        origLinkSetAttr.call(this, qualifiedName, resolveFromMap(value, urlMap));
       } else {
         origLinkSetAttr.call(this, qualifiedName, value);
       }
@@ -234,35 +199,23 @@ export const createRequestManager: CreateRequestManager = (
         ...linkHrefDescriptor,
         set(value: string) {
           const rel = this.rel || this.getAttribute("rel");
-          if (rel === "stylesheet" || rel === null) {
-            const entry = findResponseEntry(value, responses);
-            if (entry !== undefined && entry.mediaType.startsWith("text/css")) {
-              if (!styleInjected.has(this)) {
-                styleInjected.add(this);
-                const styleEl = document.createElement("style");
-                const cssText = rewriteCssUrlValue(decodeEntryText(entry), responses, cache);
-                styleEl.textContent = cssText;
-                document.head.appendChild(styleEl);
-              }
-              // Drop rel; do not set href.
-              this.rel = "";
-              return;
-            }
+          if ((rel === "stylesheet" || rel === null) && inlineStylesheet(this, value)) {
+            this.rel = "";
+            return;
           }
-          origLinkHrefSetter.call(this, resolveResourceUrl(value, responses, cache));
+          origLinkHrefSetter.call(this, resolveFromMap(value, urlMap));
         },
       });
     }
 
     // ── HTMLScriptElement: setAttribute("src", ...) ───────────────────────
-    _origScriptSetAttr = HTMLScriptElement.prototype.setAttribute;
-    const origScriptSetAttr = _origScriptSetAttr;
+    const origScriptSetAttr = HTMLScriptElement.prototype.setAttribute;
     HTMLScriptElement.prototype.setAttribute = function (
       qualifiedName: string,
       value: string,
     ): void {
       if (qualifiedName === "src") {
-        origScriptSetAttr.call(this, qualifiedName, resolveResourceUrl(value, responses, cache));
+        origScriptSetAttr.call(this, qualifiedName, resolveFromMap(value, urlMap));
       } else {
         origScriptSetAttr.call(this, qualifiedName, value);
       }
@@ -275,20 +228,19 @@ export const createRequestManager: CreateRequestManager = (
       Object.defineProperty(HTMLScriptElement.prototype, "src", {
         ...scriptSrcDescriptor,
         set(value: string) {
-          origScriptSrcSetter.call(this, resolveResourceUrl(value, responses, cache));
+          origScriptSrcSetter.call(this, resolveFromMap(value, urlMap));
         },
       });
     }
 
     // ── HTMLImageElement: setAttribute("src", ...) ────────────────────────
-    _origImgSetAttr = HTMLImageElement.prototype.setAttribute;
-    const origImgSetAttr = _origImgSetAttr;
+    const origImgSetAttr = HTMLImageElement.prototype.setAttribute;
     HTMLImageElement.prototype.setAttribute = function (
       qualifiedName: string,
       value: string,
     ): void {
       if (qualifiedName === "src") {
-        origImgSetAttr.call(this, qualifiedName, resolveResourceUrl(value, responses, cache));
+        origImgSetAttr.call(this, qualifiedName, resolveFromMap(value, urlMap));
       } else {
         origImgSetAttr.call(this, qualifiedName, value);
       }
@@ -301,17 +253,12 @@ export const createRequestManager: CreateRequestManager = (
       Object.defineProperty(HTMLImageElement.prototype, "src", {
         ...imgSrcDescriptor,
         set(value: string) {
-          origImgSrcSetter.call(this, resolveResourceUrl(value, responses, cache));
+          origImgSrcSetter.call(this, resolveFromMap(value, urlMap));
         },
       });
     }
 
     // ── HTMLElement.prototype.style → Proxy for CSS url(...) rewriting ─────
-    //
-    // CSSStyleDeclaration accessors and methods are sensitive to `this`. The
-    // Proxy must therefore route reads back to the real target (otherwise
-    // browsers throw "Illegal invocation"). Methods are bound to the target
-    // before being returned.
     const styleDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "style");
     if (styleDescriptor?.get) {
       const origStyleGetter = styleDescriptor.get;
@@ -330,9 +277,8 @@ export const createRequestManager: CreateRequestManager = (
             },
             set(target, prop, value) {
               if (typeof value === "string" && value.includes("url(")) {
-                const rewritten = rewriteCssUrlValue(value, responses, cache);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (target as any)[prop] = rewritten;
+                (target as any)[prop] = rewriteCssUrlValue(value, urlMap);
                 return true;
               }
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -345,8 +291,7 @@ export const createRequestManager: CreateRequestManager = (
     }
 
     // ── XMLHttpRequest.prototype.open ─────────────────────────────────────
-    _origXhrOpen = XMLHttpRequest.prototype.open;
-    const origXhrOpen = _origXhrOpen;
+    const origXhrOpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (
       method: string,
       url: string | URL,
@@ -355,26 +300,21 @@ export const createRequestManager: CreateRequestManager = (
       password?: string | null,
     ): void {
       const urlStr = typeof url === "string" ? url : url.toString();
-      const resolved = resolveResourceUrl(urlStr, responses, cache);
-      // Forward with all original arguments, substituting the resolved URL.
-      // XMLHttpRequest.open signature requires at minimum 3 arguments in strict mode.
+      const resolved = resolveFromMap(urlStr, urlMap);
       origXhrOpen.call(this, method, resolved, async ?? true, username ?? null, password ?? null);
     };
   }
 
-  // ── dispose ─────────────────────────────────────────────────────────────
-
   function dispose(): void {
-    // Revoke all issued Blob URLs
-    for (const blobUrl of cache.values()) {
+    for (const blobUrl of urlMap.values()) {
       if (blobUrl.startsWith("blob:")) {
         URL.revokeObjectURL(blobUrl);
       }
     }
-    cache.clear();
+    urlMap.clear();
+    cssText.clear();
     // Prototype restoration is NOT done — iframe is destroyed by parent.
-    // (Design: "best-effort restore of patched prototypes is NOT required")
   }
 
-  return { interceptRequests, dispose };
+  return { interceptRequests, ingest, injectStylesheets, dispose };
 };

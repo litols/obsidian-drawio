@@ -134,7 +134,7 @@ describe("createDrawioBridge", () => {
 
   // ── Test 3: state machine — iframe event → script/configure/script messages
 
-  it("simulating {event:'iframe'} triggers postMessage sequence: script(init) → configure → script(app)", async () => {
+  it("simulating {event:'iframe'} sends script(init) → configure(no responses) → assets(core); app after core ack", async () => {
     const mockApp = buildMockApp();
     const bridge = createDrawioBridge(mockApp as never, "test-plugin");
     bridge.mount(container);
@@ -148,29 +148,42 @@ describe("createDrawioBridge", () => {
     // Simulate {event:"iframe"} from iframe
     simulateIframeMessage(iframe.contentWindow, { event: "iframe" });
 
-    // First: {action:"script", script: iframeInitSource}
-    // Second: {action:"configure", responses, urlParams}
-    // Third: {action:"script", script: appJsSource}
-    // These are synchronous postMessage calls, so they happen immediately
-    expect(postMessageSpy.mock.calls.length).toBeGreaterThanOrEqual(3);
+    // parent→iframe の script / configure / assets はオブジェクトのまま送られる。
+    const parse = (): Record<string, unknown>[] =>
+      postMessageSpy.mock.calls.map((c) =>
+        typeof c[0] === "string"
+          ? (JSON.parse(c[0]) as Record<string, unknown>)
+          : (c[0] as Record<string, unknown>),
+      );
 
-    // parent→iframe の script / configure はオブジェクトのまま送られる。drawio webapp
-    // 向けの configure 応答 / load は従来どおり JSON 文字列。両方を許容して読む。
-    const calls = postMessageSpy.mock.calls.map((c) =>
-      typeof c[0] === "string"
-        ? (JSON.parse(c[0]) as Record<string, unknown>)
-        : (c[0] as Record<string, unknown>),
-    );
-
-    // Script injection call (init source)
-    const scriptCalls = calls.filter((m) => m["action"] === "script");
-    expect(scriptCalls.length).toBeGreaterThanOrEqual(2);
-
-    // Configure call
-    const configureCall = calls.find((m) => m["action"] === "configure" && "responses" in m);
+    let calls = parse();
+    // init script が注入される
+    expect(calls.some((m) => m["action"] === "script")).toBe(true);
+    // configure は responses を含まず urlParams を持つ (アセットはチャンク別送)
+    const configureCall = calls.find((m) => m["action"] === "configure" && "urlParams" in m);
     expect(configureCall).toBeDefined();
-    expect(Array.isArray(configureCall!["responses"])).toBe(true);
-    expect(typeof configureCall!["urlParams"]).toBe("object");
+    expect(configureCall!["responses"]).toBeUndefined();
+    // コア群の最初のアセットチャンクが送られている
+    const assetChunk = calls.find((m) => m["action"] === "assets");
+    expect(assetChunk).toBeDefined();
+    expect(assetChunk!["group"]).toBe("core");
+    // この時点では app.min.js はまだ注入されない (コア ack 待ち)
+    const scriptSourcesBefore = calls
+      .filter((m) => m["action"] === "script")
+      .map((m) => m["script"]);
+    expect(scriptSourcesBefore).toContain("console.log('init')");
+    expect(scriptSourcesBefore).not.toContain("console.log('drawio-app')");
+
+    // コア群の最終チャンクを ack すると app.min.js が注入される
+    const coreCalls = calls.filter((m) => m["action"] === "assets" && m["group"] === "core");
+    const finalCoreSeq = (coreCalls[coreCalls.length - 1] as { seq: number }).seq;
+    simulateIframeMessage(iframe.contentWindow, { event: "asset-ack", seq: finalCoreSeq });
+
+    calls = parse();
+    const scriptSourcesAfter = calls
+      .filter((m) => m["action"] === "script")
+      .map((m) => m["script"]);
+    expect(scriptSourcesAfter).toContain("console.log('drawio-app')");
 
     bridge.dispose();
   });
@@ -306,6 +319,9 @@ describe("createDrawioBridge", () => {
     const iframe = getIframe(container);
     if (iframe) {
       simulateIframeMessage(iframe.contentWindow, { event: "iframe" });
+      // ack the (single) final core chunk so app is injected and the init
+      // timeout starts (chunked delivery: init timeout begins after app inject).
+      simulateIframeMessage(iframe.contentWindow, { event: "asset-ack", seq: 0 });
     }
 
     // Advance past the init timeout (15s) without receiving {event:"init"}

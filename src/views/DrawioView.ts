@@ -336,6 +336,9 @@ export class DrawioView extends FileView {
       : undefined;
 
     this.bridge = createDrawioBridge(this.app, this.plugin.manifest.dir, this.plugin.assetCache);
+    // テーマ変更購読のため mount 前に登録し、初期テーマは ready 後 (onReady) に適用する
+    // (ready 前適用による "sendMessage() called before mount" warn を回避)。
+    this.plugin.themeBridge?.registerBridge(this.bridge);
     this.bridge.mount(container, {
       initialXml: xml,
       lang: resolveDrawioLanguage(this.plugin.settings.drawio?.language ?? "auto"),
@@ -348,6 +351,11 @@ export class DrawioView extends FileView {
       ui: "kennedy",
       drawioConfig,
       callbacks: {
+        onReady: () => {
+          if (this.bridge && this.plugin.themeBridge) {
+            this.plugin.themeBridge.applyTheme(this.bridge);
+          }
+        },
         onAutosave: (autoXml) => {
           this._lastXml = autoXml;
           this._isDirty = true;
@@ -365,11 +373,6 @@ export class DrawioView extends FileView {
       },
     });
     this._lastXml = xml;
-
-    if (this.bridge && this.plugin.themeBridge) {
-      this.plugin.themeBridge.registerBridge(this.bridge);
-      this.plugin.themeBridge.applyTheme(this.bridge);
-    }
   }
 
   /**

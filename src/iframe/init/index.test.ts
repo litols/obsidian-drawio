@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 /**
- * Tests for iframe-init/index (task 3.1)
+ * Tests for iframe-init/index (chunked asset ingest).
  *
- * Requirements: 1.1, 1.2, 1.3, 2.2, 3.1
- * Design: iframe-init entry component
+ * Requirements: 1.1, 1.2, 1.3, 2.2, 3.1, 5.5, 5.6
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -12,13 +11,10 @@ import { bootstrapIframeInit } from "./index";
 import type { InstallFrameGlobals } from "./frame-globals";
 import type { CreateRequestManager, RequestManager } from "./request-manager";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function makeEntry(href: string): DrawioResponseEntry {
   return { href, mediaType: "text/javascript", source: "/* stub */" };
 }
 
-/** Dispatch a synthetic MessageEvent on selfWindow with a given source. */
 function dispatchMessage(selfWindow: Window, data: unknown, source: unknown): void {
   const event = new MessageEvent("message", {
     data: typeof data === "string" ? data : JSON.stringify(data),
@@ -27,16 +23,14 @@ function dispatchMessage(selfWindow: Window, data: unknown, source: unknown): vo
   selfWindow.dispatchEvent(event);
 }
 
-// ─── Test setup ────────────────────────────────────────────────────────────────
-
 describe("bootstrapIframeInit", () => {
-  // We use the real jsdom window as selfWindow.
-  // parentWindow is a minimal stub with a postMessage spy.
   let selfWindow: Window;
   let parentWindow: { postMessage: ReturnType<typeof vi.fn> };
 
   let installGlobalsSpy: ReturnType<typeof vi.fn<InstallFrameGlobals>>;
   let interceptRequestsSpy: ReturnType<typeof vi.fn>;
+  let ingestSpy: ReturnType<typeof vi.fn>;
+  let injectStylesheetsSpy: ReturnType<typeof vi.fn>;
   let disposeSpy: ReturnType<typeof vi.fn>;
   let createManagerSpy: ReturnType<typeof vi.fn<CreateRequestManager>>;
 
@@ -45,22 +39,30 @@ describe("bootstrapIframeInit", () => {
 
   let disposeBootstrap: () => void;
 
-  const sampleResponses: readonly DrawioResponseEntry[] = [
+  const sampleEntries: readonly DrawioResponseEntry[] = [
     makeEntry("js/app.js"),
     makeEntry("styles/main.css"),
   ];
-
   const sampleUrlParams: Record<string, string> = { embed: "1", proto: "json" };
+  const configureMsg = {
+    action: "configure",
+    urlParams: sampleUrlParams,
+    indexHtml: "<html><head></head></html>",
+  };
 
   beforeEach(() => {
     selfWindow = window;
     parentWindow = { postMessage: vi.fn() };
 
     interceptRequestsSpy = vi.fn();
+    ingestSpy = vi.fn();
+    injectStylesheetsSpy = vi.fn();
     disposeSpy = vi.fn();
 
     const fakeManager: RequestManager = {
       interceptRequests: interceptRequestsSpy,
+      ingest: ingestSpy,
+      injectStylesheets: injectStylesheetsSpy,
       dispose: disposeSpy,
     };
 
@@ -81,170 +83,122 @@ describe("bootstrapIframeInit", () => {
   afterEach(() => {
     disposeBootstrap();
     vi.restoreAllMocks();
-    // Clean up __drawioFrameDispose
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).__drawioFrameDispose;
   });
 
-  // ─── configure message wires frame-globals ──────────────────────────────────
-
-  it("on {action:'configure'}, installGlobals is called with provided urlParams and a loadScript function", () => {
-    dispatchMessage(
-      selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
-      parentWindow,
-    );
-
+  it("configure で installGlobals(urlParams, loadScript) が呼ばれる", () => {
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
     expect(installGlobalsSpy).toHaveBeenCalledTimes(1);
-    const callArg = installGlobalsSpy.mock.calls[0][0];
+    const callArg = installGlobalsSpy.mock.calls[0]![0];
     expect(callArg.urlParams).toEqual(sampleUrlParams);
     expect(typeof callArg.loadScript).toBe("function");
   });
 
-  it("on {action:'configure'}, window.mxLoadResources is false when using real installFrameGlobals", () => {
-    // Re-run with real installFrameGlobals (no spy) to verify end-to-end globals.
-    disposeBootstrap(); // tear down spy-based one
+  it("configure は createManager() を引数なしで呼び interceptRequests する", () => {
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
+    expect(createManagerSpy).toHaveBeenCalledTimes(1);
+    expect(createManagerSpy).toHaveBeenCalledWith();
+    expect(interceptRequestsSpy).toHaveBeenCalledTimes(1);
+  });
 
+  it("configure は responses を含まず、console.debug で configured を出す", () => {
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
+    expect(debugSpy).toHaveBeenCalledWith("[drawio-frame] configured");
+  });
+
+  it("real installFrameGlobals で mxLoadResources=false / urlParams が設定される", () => {
+    disposeBootstrap();
     const dispose2 = bootstrapIframeInit({
       selfWindow,
       parentWindow: parentWindow as unknown as Window,
       createManager: createManagerSpy,
-      // installGlobals is omitted → defaults to the real implementation
     });
-
-    dispatchMessage(
-      selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
-      parentWindow,
-    );
-
-    // Real installFrameGlobals sets these globals.
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
     expect((selfWindow as Window & typeof globalThis).mxLoadResources).toBe(false);
     expect((selfWindow as Window & typeof globalThis).urlParams).toEqual(sampleUrlParams);
-    expect((selfWindow as Window & typeof globalThis).urlParams?.embed).toBe("1");
-
     dispose2();
   });
 
-  // ─── configure message wires RequestManager ─────────────────────────────────
-
-  it("on {action:'configure'}, createManager is called with the provided responses array", () => {
+  it("assets チャンク受信で ingest + {event:'asset-ack'} 応答", () => {
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
     dispatchMessage(
       selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
+      { action: "assets", entries: sampleEntries, group: "core", final: false, seq: 0 },
       parentWindow,
     );
-
-    expect(createManagerSpy).toHaveBeenCalledTimes(1);
-    expect(createManagerSpy).toHaveBeenCalledWith(sampleResponses);
+    expect(ingestSpy).toHaveBeenCalledTimes(1);
+    expect(ingestSpy).toHaveBeenCalledWith(sampleEntries);
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(
+      JSON.stringify({ event: "asset-ack", seq: 0 }),
+      "*",
+    );
   });
 
-  it("on {action:'configure'}, interceptRequests() is called on the created manager", () => {
+  it("core 群の最終チャンクで injectStylesheets(indexHtml) が呼ばれる", () => {
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
     dispatchMessage(
       selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
+      { action: "assets", entries: sampleEntries, group: "core", final: true, seq: 0 },
       parentWindow,
     );
-
-    expect(interceptRequestsSpy).toHaveBeenCalledTimes(1);
+    expect(injectStylesheetsSpy).toHaveBeenCalledTimes(1);
+    expect(injectStylesheetsSpy).toHaveBeenCalledWith(configureMsg.indexHtml);
   });
 
-  // ─── debug log on configure ─────────────────────────────────────────────────
-
-  it("on {action:'configure'}, console.debug logs '[drawio-frame] configured'", () => {
+  it("tail 群の最終チャンクでは injectStylesheets を呼ばない", () => {
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
     dispatchMessage(
       selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
+      { action: "assets", entries: sampleEntries, group: "tail", final: true, seq: 5 },
       parentWindow,
     );
-
-    expect(debugSpy).toHaveBeenCalledWith("[drawio-frame] configured");
+    expect(injectStylesheetsSpy).not.toHaveBeenCalled();
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(
+      JSON.stringify({ event: "asset-ack", seq: 5 }),
+      "*",
+    );
   });
 
-  // ─── other actions do not trigger configure handling ────────────────────────
-
-  it("other actions such as {action:'script'} do NOT trigger installGlobals", () => {
-    dispatchMessage(selfWindow, { action: "script", script: "console.log('hello')" }, parentWindow);
-
-    expect(installGlobalsSpy).not.toHaveBeenCalled();
-    expect(createManagerSpy).not.toHaveBeenCalled();
+  it("configure 前の assets は warn + drop (ingest されない)", () => {
+    dispatchMessage(
+      selfWindow,
+      { action: "assets", entries: sampleEntries, group: "core", final: false, seq: 0 },
+      parentWindow,
+    );
+    expect(ingestSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("assets received before configure"),
+    );
   });
 
-  it("other actions such as {action:'load'} do NOT trigger installGlobals", () => {
+  it("script / load アクションは configure ハンドラを起動しない", () => {
+    dispatchMessage(selfWindow, { action: "script", script: "x" }, parentWindow);
     dispatchMessage(selfWindow, { action: "load", xml: "<mxGraphModel/>" }, parentWindow);
-
     expect(installGlobalsSpy).not.toHaveBeenCalled();
     expect(createManagerSpy).not.toHaveBeenCalled();
   });
 
-  // ─── idempotency: configure twice → second is no-op ─────────────────────────
-
-  it("receiving configure twice — second call is a no-op (warn and skip)", () => {
-    const configureMsg = {
-      action: "configure",
-      responses: sampleResponses,
-      urlParams: sampleUrlParams,
-    };
-
+  it("configure 2 回目は no-op (warn)", () => {
     dispatchMessage(selfWindow, configureMsg, parentWindow);
     dispatchMessage(selfWindow, configureMsg, parentWindow);
-
-    // installGlobals and createManager should only be called once.
     expect(installGlobalsSpy).toHaveBeenCalledTimes(1);
     expect(createManagerSpy).toHaveBeenCalledTimes(1);
-    expect(interceptRequestsSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it("second configure emits console.warn with recognizable message", () => {
-    const configureMsg = {
-      action: "configure",
-      responses: sampleResponses,
-      urlParams: sampleUrlParams,
-    };
-
-    dispatchMessage(selfWindow, configureMsg, parentWindow);
-    dispatchMessage(selfWindow, configureMsg, parentWindow);
-
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("configure received more than once"),
     );
   });
 
-  // ─── messages from untrusted sources are ignored ─────────────────────────────
-
-  it("a configure message from a foreign source does NOT trigger installGlobals", () => {
+  it("foreign source の configure は無視される", () => {
     const foreignSource = { postMessage: vi.fn() };
-
-    dispatchMessage(
-      selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
-      foreignSource,
-    );
-
+    dispatchMessage(selfWindow, configureMsg, foreignSource);
     expect(installGlobalsSpy).not.toHaveBeenCalled();
-    expect(createManagerSpy).not.toHaveBeenCalled();
   });
 
-  // ─── __drawioFrameDispose is exposed on selfWindow ───────────────────────────
-
-  it("after configure, __drawioFrameDispose is a function on selfWindow", () => {
-    dispatchMessage(
-      selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
-      parentWindow,
-    );
-
+  it("__drawioFrameDispose が manager.dispose を呼ぶ", () => {
+    dispatchMessage(selfWindow, configureMsg, parentWindow);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(typeof (selfWindow as any).__drawioFrameDispose).toBe("function");
-  });
-
-  it("calling __drawioFrameDispose invokes manager.dispose()", () => {
-    dispatchMessage(
-      selfWindow,
-      { action: "configure", responses: sampleResponses, urlParams: sampleUrlParams },
-      parentWindow,
-    );
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (selfWindow as any).__drawioFrameDispose();
     expect(disposeSpy).toHaveBeenCalledTimes(1);

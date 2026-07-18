@@ -33,11 +33,7 @@
  */
 
 import type { DrawioResponseEntry } from "../shared/asset-types";
-import {
-  createRequestManager,
-  rewriteCssUrlValue,
-  type CreateRequestManager,
-} from "./request-manager";
+import { createRequestManager, type CreateRequestManager } from "./request-manager";
 import { installFrameGlobals, type InstallFrameGlobals } from "./frame-globals";
 import { createIframeFrameMessenger } from "./frame-messenger";
 import { installUserPrefHooks } from "./user-pref-hooks";
@@ -46,11 +42,19 @@ import { installUserPrefHooks } from "./user-pref-hooks";
 
 interface ConfigureMessage {
   readonly action: "configure";
-  readonly responses: readonly DrawioResponseEntry[];
   readonly urlParams: Record<string, string>;
   /** drawio webapp の index.html 文字列。`<link rel=stylesheet>` を解析して、
    *  本来の media 属性を尊重しつつ inline 注入するために使う。 */
   readonly indexHtml?: string;
+}
+
+/** 親からのアセットチャンク (OOM 対策の段階配信、要件 5.5/5.6)。 */
+interface AssetsMessage {
+  readonly action: "assets";
+  readonly entries: readonly DrawioResponseEntry[];
+  readonly group: "core" | "tail";
+  readonly final: boolean;
+  readonly seq: number;
 }
 
 interface UnknownMessage {
@@ -58,7 +62,12 @@ interface UnknownMessage {
   readonly [key: string]: unknown;
 }
 
-type InboundMessage = ConfigureMessage | UnknownMessage;
+type InboundMessage = ConfigureMessage | AssetsMessage | UnknownMessage;
+
+interface AssetAckMessage {
+  readonly event: "asset-ack";
+  readonly seq: number;
+}
 
 // ─── loadScript helper ────────────────────────────────────────────────────────
 
@@ -114,70 +123,38 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
     createManager = createRequestManager,
   } = input;
 
-  const messenger = createIframeFrameMessenger<InboundMessage, never>({
+  const messenger = createIframeFrameMessenger<InboundMessage, AssetAckMessage>({
     selfWindow,
     parentWindow,
   });
 
   let configured = false;
+  let indexHtmlStr = "";
+  let manager: ReturnType<CreateRequestManager> | null = null;
 
-  const unregister = messenger.onMessage((msg: InboundMessage) => {
-    if (msg.action !== "configure") {
-      // Other actions (script, load, save, etc.) are not handled here.
-      return;
-    }
-
+  function handleConfigure(msg: ConfigureMessage): void {
     if (configured) {
-      // Idempotency: second configure is a no-op; warn and return.
+      // Idempotency: second configure (e.g. drawio's {action:"configure",config}
+      // reply) is a no-op here; warn and return.
       console.warn("[drawio-frame] configure received more than once — ignoring duplicate");
       return;
     }
     configured = true;
 
-    const { responses, urlParams, indexHtml } = msg as ConfigureMessage;
+    const { urlParams, indexHtml } = msg;
+    indexHtmlStr = typeof indexHtml === "string" ? indexHtml : "";
 
     // Install frame globals (mxLoadResources, mxscript, urlParams, etc.)
     installGlobals({ urlParams, loadScript });
 
-    // Intercept all DOM resource requests via Blob URL resolution.
-    const manager = createManager(responses);
+    // Create the request manager (assets arrive later as chunks) and patch DOM.
+    manager = createManager();
     manager.interceptRequests();
-
-    // Pre-inject the stylesheets that drawio's index.html declares via
-    // <link rel="stylesheet"> tags. Our flow uses a data:text/html bootstrap
-    // so those static <link> tags from index.html are never evaluated.
-    //
-    // We honour each link's `media` attribute by wrapping the CSS body in
-    // `@media (...)`. This is critical for `styles/high-contrast.css`, which
-    // ships with `media="(forced-colors: active)"` and would otherwise force
-    // the editor into permanent high-contrast styling.
-    //
-    // CSS `url(...)` references are rewritten to Blob URLs so background
-    // images / @font-face resolve correctly.
-    if (typeof indexHtml === "string" && indexHtml.length > 0) {
-      const cssCache = new Map<string, string>();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(indexHtml, "text/html");
-      const links = Array.from(doc.querySelectorAll("link[rel='stylesheet']"));
-      for (const link of links) {
-        const href = link.getAttribute("href");
-        if (!href) continue;
-        const entry = responses.find((r) => r.href === href);
-        if (entry === undefined) continue;
-        if (!entry.mediaType.startsWith("text/css")) continue;
-        const media = link.getAttribute("media");
-        const css = rewriteCssUrlValue(entry.source, responses, cssCache);
-        const styleEl = document.createElement("style");
-        styleEl.dataset["drawioInjected"] = href;
-        styleEl.textContent = media ? `@media ${media} {\n${css}\n}` : css;
-        document.head.appendChild(styleEl);
-      }
-    }
 
     // Expose dispose on window for tests / future use (best-effort).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (selfWindow as any).__drawioFrameDispose = (): void => {
-      manager.dispose();
+      manager?.dispose();
     };
 
     // drawio エディタ内でのユーザー操作 (ライブラリ / テーマ / グリッド) を親へ通知。
@@ -189,6 +166,33 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
     }
 
     console.debug("[drawio-frame] configured");
+  }
+
+  function handleAssets(msg: AssetsMessage): void {
+    if (manager === null) {
+      console.warn("[drawio-frame] assets received before configure — dropping chunk");
+      return;
+    }
+    // Blob-ize immediately; source strings are not retained (OOM 対策).
+    manager.ingest(msg.entries);
+
+    // コア群の最終チャンク到着で index.html の <link stylesheet> を inline 注入する。
+    // (画像等コアアセットが Blob 化済みなので url(...) が正しく解決される)
+    if (msg.group === "core" && msg.final) {
+      manager.injectStylesheets(indexHtmlStr);
+    }
+
+    // 親へ ack。親はこれを受けて次のチャンク配信 / app 起動へ進む (backpressure)。
+    messenger.send({ event: "asset-ack", seq: msg.seq });
+  }
+
+  const unregister = messenger.onMessage((msg: InboundMessage) => {
+    if (msg.action === "configure") {
+      handleConfigure(msg as ConfigureMessage);
+    } else if (msg.action === "assets") {
+      handleAssets(msg as AssetsMessage);
+    }
+    // Other actions (script, load, save, etc.) are not handled here.
   });
 
   return (): void => {

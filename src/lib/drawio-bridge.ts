@@ -33,6 +33,9 @@ export interface DrawioBridgeCallbacks {
   // drawio エディタ内でユーザーが操作したプリファレンス (ライブラリ / テーマ / グリッド)
   // を反映するためのコールバック。詳細は drawio-protocol.ts の DrawioInboundUserPrefChange。
   onUserPrefChange?: (msg: DrawioInboundUserPrefChange) => void;
+  /** bridge が ready ({event:"init"} 受信) に到達した後に呼ばれる。ready 前の
+   *  sendMessage 警告を避けて初期テーマ適用等を行うためのフック。 */
+  onReady?: () => void;
 }
 
 export interface DrawioBridgeMountOptions extends DrawioUrlOptions {
@@ -86,6 +89,72 @@ const TIMEOUT_IFRAME_EVENT_MS = 5_000;
 // construction) consistently takes > 5s on cold first-load in Obsidian.
 // Use 15s to keep comfortable margin while keeping total mount budget short.
 const TIMEOUT_INIT_EVENT_MS = 15_000;
+// コア群のチャンク配信 (ack backpressure) 全体のタイムアウト。
+const TIMEOUT_CORE_DELIVERY_MS = 30_000;
+
+// ─── アセット段階配信 (OOM 対策, 要件 5.5/5.6) ────────────────────────────────
+// 一括 postMessage (~110MB) をやめ、上限サイズのチャンク列で ack backpressure 配信する。
+// 一度に構造化複製されるのは 1 チャンク分のみに抑えられ、renderer のメモリスパイクを回避する。
+const ASSET_CHUNK_BYTES = 8 * 1024 * 1024;
+
+interface AssetEntry {
+  readonly mediaType: string;
+  readonly href: string;
+  readonly source: string;
+}
+
+interface AssetChunk {
+  readonly action: "assets";
+  readonly entries: AssetEntry[];
+  readonly group: "core" | "tail";
+  readonly final: boolean;
+  readonly seq: number;
+}
+
+/**
+ * テール群 (エディタ起動後に逐次配信する重量アセット) の href 判定。
+ * それ以外はコア群 (起動に必要な styles/img/images/resources/mxgraph 等)。
+ */
+function isTailHref(href: string): boolean {
+  return (
+    href.startsWith("stencils/") ||
+    href.startsWith("shapes/") ||
+    href.startsWith("templates/") ||
+    href.startsWith("math/") ||
+    href.startsWith("math4/") ||
+    href.startsWith("plugins/") ||
+    href.includes("mermaid")
+  );
+}
+
+/** entries をサイズ上限で分割し、group と連番 seq を振ったチャンク列を返す。 */
+function buildAssetChunks(
+  entries: readonly AssetEntry[],
+  group: "core" | "tail",
+  startSeq: number,
+): AssetChunk[] {
+  const chunks: AssetChunk[] = [];
+  let cur: AssetEntry[] = [];
+  let curSize = 0;
+  let seq = startSeq;
+  for (const e of entries) {
+    if (cur.length > 0 && curSize + e.source.length > ASSET_CHUNK_BYTES) {
+      chunks.push({ action: "assets", entries: cur, group, final: false, seq: seq++ });
+      cur = [];
+      curSize = 0;
+    }
+    cur.push(e);
+    curSize += e.source.length;
+  }
+  if (cur.length > 0) {
+    chunks.push({ action: "assets", entries: cur, group, final: false, seq: seq++ });
+  }
+  if (chunks.length > 0) {
+    const last = chunks[chunks.length - 1]!;
+    chunks[chunks.length - 1] = { ...last, final: true };
+  }
+  return chunks;
+}
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
@@ -110,6 +179,7 @@ export function createDrawioBridge(
   // Timeout handles
   let iframeEventTimeoutId: ReturnType<typeof setTimeout> | null = null;
   let initEventTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let coreDeliveryTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   // Asset loader instance (created fresh on each mount)
   let assetLoaderDispose: (() => void) | null = null;
@@ -124,6 +194,10 @@ export function createDrawioBridge(
     if (initEventTimeoutId !== null) {
       clearTimeout(initEventTimeoutId);
       initEventTimeoutId = null;
+    }
+    if (coreDeliveryTimeoutId !== null) {
+      clearTimeout(coreDeliveryTimeoutId);
+      coreDeliveryTimeoutId = null;
     }
   }
 
@@ -246,6 +320,70 @@ export function createDrawioBridge(
     urlParams: Record<string, string>,
     indexHtml: string,
   ): (event: MessageEvent) => void {
+    // アセットをコア群/テール群に分けチャンク化する。コアは起動前に、テールは
+    // {event:"init"} 後に、いずれも ack backpressure (1 チャンクずつ) で配信する。
+    const coreChunks = buildAssetChunks(
+      responses.filter((r) => !isTailHref(r.href)),
+      "core",
+      0,
+    );
+    const tailChunks = buildAssetChunks(
+      responses.filter((r) => isTailHref(r.href)),
+      "tail",
+      coreChunks.length,
+    );
+    let coreAcked = 0;
+    let tailAcked = 0;
+    let appInjected = false;
+
+    // structured clone オブジェクトのまま送る (JSON.stringify を排除)。
+    const post = (msg: unknown): void => iframeRef.current?.contentWindow?.postMessage(msg, "*");
+
+    function injectApp(): void {
+      if (appInjected) return;
+      appInjected = true;
+      if (coreDeliveryTimeoutId !== null) {
+        clearTimeout(coreDeliveryTimeoutId);
+        coreDeliveryTimeoutId = null;
+      }
+      // drawio app.min.js を注入し App.main() を起動する。
+      post({ action: "script", script: appJsSource });
+      post({
+        action: "script",
+        script:
+          "setTimeout(function(){ try { App.main(); } catch (e) { console.error('App.main() failed', e); } }, 0);",
+      });
+      initEventTimeoutId = setTimeout(() => {
+        transitionToError(containerRef, "Timeout waiting for drawio {event:'init'}");
+      }, TIMEOUT_INIT_EVENT_MS);
+    }
+
+    function startCoreDelivery(): void {
+      if (coreChunks.length === 0) {
+        injectApp();
+        return;
+      }
+      post(coreChunks[0]);
+      coreDeliveryTimeoutId = setTimeout(() => {
+        transitionToError(containerRef, "Timeout during core asset delivery");
+      }, TIMEOUT_CORE_DELIVERY_MS);
+    }
+
+    function startTailDelivery(): void {
+      if (tailChunks.length > 0) post(tailChunks[0]);
+    }
+
+    function handleAssetAck(seq: number): void {
+      if (seq < coreChunks.length) {
+        coreAcked += 1;
+        if (coreAcked < coreChunks.length) post(coreChunks[coreAcked]);
+        else injectApp();
+      } else {
+        tailAcked += 1;
+        if (tailAcked < tailChunks.length) post(tailChunks[tailAcked]);
+      }
+    }
+
     return function handleMessage(event: MessageEvent): void {
       const currentIframe = iframeRef.current;
       if (!currentIframe || event.source !== currentIframe.contentWindow) return;
@@ -261,6 +399,12 @@ export function createDrawioBridge(
       // Discard action-only messages (from drawio webapp's internal postMessages)
       if (!("event" in raw)) return;
 
+      // アセットチャンクの ack は状態に依らず配信ドライバへ回す (backpressure)。
+      if (raw.event === "asset-ack") {
+        handleAssetAck((raw as { seq?: number }).seq ?? 0);
+        return;
+      }
+
       switch (state) {
         case "loading":
           // Bootstrap iframe ready signal
@@ -269,56 +413,16 @@ export function createDrawioBridge(
             clearTimeout(iframeEventTimeoutId ?? undefined);
             iframeEventTimeoutId = null;
 
-            // parent→iframe の script / configure は structured clone オブジェクトのまま送る。
-            // JSON.stringify を排除し、巨大な responses / appJsSource のコピーを高速化する。
-            // (bootstrap HTML と frame-messenger はどちらも文字列 / オブジェクト両受理)
             // 1. Inject in-iframe init IIFE
-            if (currentIframe.contentWindow) {
-              currentIframe.contentWindow.postMessage(
-                { action: "script", script: iframeInitSource },
-                "*",
-              );
-              // 2. Send configure with responses, urlParams, and indexHtml.
-              //    iframe-init parses indexHtml's <link rel=stylesheet> tags
-              //    and injects them as inline <style>, honouring each link's
-              //    `media` attribute (e.g. high-contrast.css is gated behind
-              //    `(forced-colors: active)`).
-              currentIframe.contentWindow.postMessage(
-                {
-                  action: "configure",
-                  responses,
-                  urlParams,
-                  indexHtml,
-                },
-                "*",
-              );
-              // 3. Inject drawio app.min.js (defines App / Editor / EditorUi / Graph / mx*)
-              currentIframe.contentWindow.postMessage(
-                { action: "script", script: appJsSource },
-                "*",
-              );
-              // 4. Trigger drawio's main entry — App.main() bootstraps the editor
-              //    and fires the embed-mode {event:'init'} postMessage to parent.
-              //    drawio's stock js/main.js wraps this in a window.load handler,
-              //    but in our injected-script flow window.load already fired, so
-              //    we invoke App.main() directly. Using setTimeout(0) defers
-              //    to after the app.min.js script element is fully evaluated.
-              currentIframe.contentWindow.postMessage(
-                {
-                  action: "script",
-                  script:
-                    "setTimeout(function(){ try { App.main(); } catch (e) { console.error('App.main() failed', e); } }, 0);",
-                },
-                "*",
-              );
-            }
+            post({ action: "script", script: iframeInitSource });
+            // 2. Send configure (globals + indexHtml)。responses はチャンクで別送する。
+            post({ action: "configure", urlParams, indexHtml });
 
             state = "configuring";
 
-            // Set timeout for init event
-            initEventTimeoutId = setTimeout(() => {
-              transitionToError(containerRef, "Timeout waiting for drawio {event:'init'}");
-            }, TIMEOUT_INIT_EVENT_MS);
+            // 3. コア群のチャンク配信を開始。完了 (最終コアチャンクの ack) で
+            //    iframe が CSS を注入済みとなり、injectApp() が app 起動へ進む。
+            startCoreDelivery();
           }
           break;
 
@@ -332,12 +436,8 @@ export function createDrawioBridge(
           // configure リスナは drawio 側で 1 度受信すると remove されるので、post-init で
           // configure を再送しても効果はない。iframe 単位で正しく 1 回だけ応答する。
           if (raw.event === "configure") {
-            if (currentIframe.contentWindow) {
-              currentIframe.contentWindow.postMessage(
-                JSON.stringify({ action: "configure", config: drawioConfig ?? {} }),
-                "*",
-              );
-            }
+            // drawio webapp 向けの応答は JSON 文字列のまま。
+            post(JSON.stringify({ action: "configure", config: drawioConfig ?? {} }));
             break;
           }
           // Wait for drawio's init event
@@ -349,13 +449,14 @@ export function createDrawioBridge(
 
             removeLoadingIndicator();
 
-            // Send initial XML
-            if (currentIframe.contentWindow) {
-              currentIframe.contentWindow.postMessage(
-                JSON.stringify({ action: "load", xml: initialXml }),
-                "*",
-              );
-            }
+            // Send initial XML (drawio webapp 向けは JSON 文字列)。
+            post(JSON.stringify({ action: "load", xml: initialXml }));
+
+            // ready 到達後にフックを実行 (初期テーマ適用等)。sendMessage 警告を回避。
+            callbacks.onReady?.();
+
+            // 重量テール群を起動後にバックグラウンド逐次配信する。
+            startTailDelivery();
           }
           break;
 

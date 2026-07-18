@@ -1,17 +1,20 @@
 // @vitest-environment jsdom
 /**
- * Tests for iframe-init/request-manager (task 2.3)
+ * Tests for iframe-init/request-manager (chunked ingest + Blob-ization).
  *
- * Requirements: 1.1, 1.3, 1.4, 3.2, 4.2
- * Design: iframe-init/request-manager component
+ * Requirements: 1.1, 1.3, 1.4, 3.2, 4.2, 5.5, 5.6
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { DrawioResponseEntry } from "../shared/asset-types";
-import { createRequestManager, resolveResourceUrl } from "./request-manager";
+import {
+  createRequestManager,
+  resolveFromMap,
+  rewriteCssUrlValue,
+  blobifyEntry,
+} from "./request-manager";
 
-// jsdom does not implement URL.createObjectURL / revokeObjectURL
-// Define them as stubs so vi.spyOn can replace them in tests.
+// jsdom does not implement URL.createObjectURL / revokeObjectURL.
 if (typeof URL.createObjectURL === "undefined") {
   URL.createObjectURL = (_blob: Blob) => "blob:stub";
 }
@@ -19,17 +22,14 @@ if (typeof URL.revokeObjectURL === "undefined") {
   URL.revokeObjectURL = (_url: string) => {};
 }
 
-// ─── helper builders ───────────────────────────────────────────────────────
-
-function makeTextEntry(
+function textEntry(
   href: string,
   source: string,
   mediaType = "text/javascript",
 ): DrawioResponseEntry {
   return { href, source, mediaType };
 }
-
-function makeBase64Entry(
+function b64Entry(
   href: string,
   source: string,
   mediaType = "image/png;base64",
@@ -37,317 +37,147 @@ function makeBase64Entry(
   return { href, source, mediaType };
 }
 
-/** Generate a base64 string of a given length (arbitrary content). */
-function base64ofLength(len: number): string {
-  return "A".repeat(len);
-}
+let blobCounter = 0;
+beforeEach(() => {
+  blobCounter = 0;
+  vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:obj-${blobCounter++}`);
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+});
+afterEach(() => vi.restoreAllMocks());
 
-// ─── URL resolution unit tests ─────────────────────────────────────────────
-
-describe("resolveResourceUrl (unit)", () => {
-  const responses: readonly DrawioResponseEntry[] = [
-    makeTextEntry("js/main.js", "console.log('main')"),
-    makeBase64Entry("images/spin.gif", base64ofLength(512), "image/gif;base64"), // < 1024 → data:
-    makeBase64Entry("images/large.png", base64ofLength(2048), "image/png;base64"), // ≥ 1024 → blob:
-  ];
-
-  afterEach(() => {
-    // reset any cached blob URLs between tests
-    vi.restoreAllMocks();
+describe("blobifyEntry", () => {
+  it("text エントリは blob: URL を返す", () => {
+    expect(blobifyEntry(textEntry("js/a.js", "x"))).toMatch(/^blob:/);
   });
 
-  it("passes through app:// URLs unchanged", () => {
-    const cache = new Map<string, string>();
-    const result = resolveResourceUrl("app://abc/foo.js", responses, cache);
-    expect(result).toBe("app://abc/foo.js");
+  it("小さい base64 (<1024) は inline data: URL を返す (Blob 割当なし)", () => {
+    const url = blobifyEntry(b64Entry("img/s.gif", "A".repeat(512), "image/gif;base64"));
+    expect(url.startsWith("data:image/gif;base64,")).toBe(true);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
-  it("passes through data: URLs unchanged", () => {
-    const cache = new Map<string, string>();
-    const result = resolveResourceUrl("data:text/plain,hello", responses, cache);
-    expect(result).toBe("data:text/plain,hello");
-  });
-
-  it("passes through https: URLs unchanged", () => {
-    const cache = new Map<string, string>();
-    const result = resolveResourceUrl("https://example.com/x.js", responses, cache);
-    expect(result).toBe("https://example.com/x.js");
-  });
-
-  it("passes through http: URLs unchanged", () => {
-    const cache = new Map<string, string>();
-    const result = resolveResourceUrl("http://example.com/x.js", responses, cache);
-    expect(result).toBe("http://example.com/x.js");
-  });
-
-  it("passes through protocol-relative // URLs unchanged", () => {
-    const cache = new Map<string, string>();
-    const result = resolveResourceUrl("//cdn.example.com/x.js", responses, cache);
-    expect(result).toBe("//cdn.example.com/x.js");
-  });
-
-  it("passes through #default#VML unchanged", () => {
-    const cache = new Map<string, string>();
-    const result = resolveResourceUrl("#default#VML", responses, cache);
-    expect(result).toBe("#default#VML");
-  });
-
-  it("returns original URL and warns for unknown relative URL", () => {
-    const cache = new Map<string, string>();
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const result = resolveResourceUrl("missing/file.js", responses, cache);
-    expect(result).toBe("missing/file.js");
-    expect(warnSpy).toHaveBeenCalledOnce();
-  });
-
-  it("resolves text entry to a blob: URL", () => {
-    const cache = new Map<string, string>();
-    const createObjectURLSpy = vi
-      .spyOn(URL, "createObjectURL")
-      .mockReturnValue("blob:fake-main-js");
-    const result = resolveResourceUrl("js/main.js", responses, cache);
-    expect(result).toMatch(/^blob:/);
-    expect(createObjectURLSpy).toHaveBeenCalledOnce();
-  });
-
-  it("resolves small base64 entry (< 1024 chars) to a data: URL", () => {
-    const cache = new Map<string, string>();
-    const result = resolveResourceUrl("images/spin.gif", responses, cache);
-    expect(result).toMatch(/^data:/);
-  });
-
-  it("resolves large base64 entry (>= 1024 chars) to a blob: URL", () => {
-    const cache = new Map<string, string>();
-    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-large-png");
-    const result = resolveResourceUrl("images/large.png", responses, cache);
-    expect(result).toMatch(/^blob:/);
-  });
-
-  it("caches repeated lookups for the same href", () => {
-    const cache = new Map<string, string>();
-    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:cached");
-    resolveResourceUrl("js/main.js", responses, cache);
-    resolveResourceUrl("js/main.js", responses, cache);
-    // createObjectURL must be called at most once for the same href
-    expect(createObjectURLSpy).toHaveBeenCalledOnce();
+  it("大きい base64 (>=1024) は blob: URL を返す", () => {
+    const url = blobifyEntry(b64Entry("img/l.png", "QUJD".repeat(400), "image/png;base64"));
+    expect(url).toMatch(/^blob:/);
   });
 });
 
-// ─── RequestManager integration tests ─────────────────────────────────────
+describe("resolveFromMap", () => {
+  const map = new Map<string, string>([["js/main.js", "blob:mapped"]]);
 
-describe("createRequestManager", () => {
-  const responses: readonly DrawioResponseEntry[] = [
-    makeTextEntry("js/main.js", "// main"),
-    makeTextEntry("js/foo.js", "// foo"),
-    makeBase64Entry("images/spin.gif", base64ofLength(512), "image/gif;base64"),
-    makeBase64Entry("images/large.png", base64ofLength(2048), "image/png;base64"),
-  ];
+  it.each(["app://x", "data:foo", "blob:existing", "https://x", "http://x", "//cdn/x", "#frag"])(
+    "passthrough: %s",
+    (u) => {
+      expect(resolveFromMap(u, map)).toBe(u);
+    },
+  );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let revokeObjectURLSpy: any;
-
-  beforeEach(() => {
-    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake-url");
-    revokeObjectURLSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  it("マップヒットは対応 URL を返す", () => {
+    expect(resolveFromMap("js/main.js", map)).toBe("blob:mapped");
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  it("未マッチは warn + 原 URL を passthrough", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(resolveFromMap("js/missing.js", map)).toBe("js/missing.js");
+    expect(warn).toHaveBeenCalled();
   });
+});
 
-  // ── setAttribute / setter for HTMLLinkElement ──────────────────────────
-
-  it("link.setAttribute('href', 'js/main.js') → blob/data URL (non-stylesheet path)", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    // js/main.js is text/javascript not text/css → falls through to blob URL
-    const link = document.createElement("link");
-    link.setAttribute("href", "js/main.js");
-    expect(link.getAttribute("href")).toMatch(/^blob:|^data:/);
+describe("rewriteCssUrlValue", () => {
+  it("url(...) をマップの blob URL に書き換え、引用符を保持する", () => {
+    const map = new Map<string, string>([["img/bg.png", "blob:bg"]]);
+    expect(rewriteCssUrlValue("background:url('img/bg.png')", map)).toBe(
+      "background:url('blob:bg')",
+    );
+    expect(rewriteCssUrlValue("background:url(img/bg.png)", map)).toBe("background:url(blob:bg)");
   });
+});
 
-  it("link.href setter → blob/data URL (non-stylesheet path)", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const link = document.createElement("link");
-    link.href = "js/main.js";
-    expect(link.getAttribute("href")).toMatch(/^blob:|^data:/);
-  });
-
-  it("link.setAttribute('href', 'https://example.com/x.css') → passthrough", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const link = document.createElement("link");
-    link.setAttribute("href", "https://example.com/x.css");
-    expect(link.getAttribute("href")).toBe("https://example.com/x.css");
-  });
-
-  it("link[rel=stylesheet] CSS href → inline <style> injected, link neutralized (CSP workaround)", () => {
-    const cssResponses: readonly DrawioResponseEntry[] = [
-      makeTextEntry("styles/grapheditor.css", ".foo { color: red; }", "text/css"),
-    ];
-    const rm = createRequestManager(cssResponses);
-    rm.interceptRequests();
-
-    const beforeStyles = document.head.querySelectorAll("style").length;
-
-    const link = document.createElement("link");
-    link.setAttribute("rel", "stylesheet");
-    link.setAttribute("href", "styles/grapheditor.css");
-
-    // link href should NOT be set (no fetch). rel is dropped so the browser
-    // does not classify this element as a stylesheet to load.
-    expect(link.getAttribute("href")).toBeNull();
-    expect(link.getAttribute("rel")).toBe("");
-
-    // <style> with the CSS source must be appended to head
-    const afterStyles = document.head.querySelectorAll("style");
-    expect(afterStyles.length).toBe(beforeStyles + 1);
-    const last = afterStyles[afterStyles.length - 1] as HTMLStyleElement;
-    expect(last.textContent).toBe(".foo { color: red; }");
-  });
-
-  // ── setAttribute / setter for HTMLScriptElement ────────────────────────
-
-  it("script.setAttribute('src', 'js/foo.js') → blob/data URL", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
+describe("createRequestManager: ingest + 解決", () => {
+  it("ingest でソースを Blob 化し、interceptRequests 後に script.src が blob へ解決される", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([textEntry("js/foo.js", "console.log(1)")]);
+    mgr.interceptRequests();
 
     const script = document.createElement("script");
     script.setAttribute("src", "js/foo.js");
-    expect(script.getAttribute("src")).toMatch(/^blob:|^data:/);
+    expect(script.getAttribute("src")).toMatch(/^blob:/);
+    mgr.dispose();
   });
 
-  it("script.src setter → calls createObjectURL (resolution went through)", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const createSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
-    const script = document.createElement("script");
-    script.src = "js/foo.js";
-    expect(createSpy).toHaveBeenCalled();
-  });
-
-  // ── setAttribute / setter for HTMLImageElement ─────────────────────────
-
-  it("img.setAttribute('src', 'images/spin.gif') → data: URL for small base64", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
+  it("img.src / XHR open もマップ経由で解決される", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([b64Entry("img/l.png", "QUJD".repeat(400), "image/png;base64")]);
+    mgr.interceptRequests();
 
     const img = document.createElement("img");
-    img.setAttribute("src", "images/spin.gif");
-    expect(img.getAttribute("src")).toMatch(/^data:/);
-  });
-
-  it("img.setAttribute('src', 'images/large.png') → blob: URL for large base64", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const img = document.createElement("img");
-    img.setAttribute("src", "images/large.png");
+    img.setAttribute("src", "img/l.png");
     expect(img.getAttribute("src")).toMatch(/^blob:/);
+
+    const xhr = new XMLHttpRequest();
+    // open は例外なく実行できればよい (jsdom で blob: は送信されない)
+    expect(() => xhr.open("GET", "img/l.png")).not.toThrow();
+    mgr.dispose();
   });
 
-  // ── passthrough for app:// ──────────────────────────────────────────────
+  it("未 ingest の URL は warn + passthrough で劣化する (テール到着前アクセス)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const mgr = createRequestManager();
+    mgr.interceptRequests();
+    const script = document.createElement("script");
+    script.setAttribute("src", "stencils/aws.xml");
+    expect(script.getAttribute("src")).toBe("stencils/aws.xml");
+    expect(warn).toHaveBeenCalled();
+    mgr.dispose();
+  });
 
-  it("link.setAttribute('href', 'app://abc/x') → passthrough", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
+  it("dispose で発行した blob URL が revoke される", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([textEntry("js/a.js", "x"), textEntry("js/b.js", "y")]);
+    mgr.dispose();
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("createRequestManager: CSS <style> 注入", () => {
+  const INDEX_HTML =
+    "<html><head>" +
+    '<link rel="stylesheet" href="styles/main.css">' +
+    '<link rel="stylesheet" href="styles/hc.css" media="(forced-colors: active)">' +
+    "</head></html>";
+
+  it("injectStylesheets は index.html の link を <style> として注入し media を尊重する", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([
+      textEntry("styles/main.css", "body{background:url('img/bg.png')}", "text/css"),
+      textEntry("styles/hc.css", "body{color:red}", "text/css"),
+      b64Entry("img/bg.png", "QUJD".repeat(400), "image/png;base64"),
+    ]);
+    mgr.interceptRequests();
+    mgr.injectStylesheets(INDEX_HTML);
+
+    const styles = Array.from(document.head.querySelectorAll("style[data-drawio-injected]"));
+    expect(styles.length).toBe(2);
+    const main = styles.find((s) => s.getAttribute("data-drawio-injected") === "styles/main.css")!;
+    // url() が blob へ書き換わっている
+    expect(main.textContent).toMatch(/url\('blob:/);
+    const hc = styles.find((s) => s.getAttribute("data-drawio-injected") === "styles/hc.css")!;
+    expect(hc.textContent).toContain("@media (forced-colors: active)");
+    mgr.dispose();
+  });
+
+  it("動的 link.setAttribute('href') も CSS を <style> 化し fetch を無効化する", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([textEntry("styles/x.css", "body{margin:0}", "text/css")]);
+    mgr.interceptRequests();
 
     const link = document.createElement("link");
-    link.setAttribute("href", "app://abc/x");
-    expect(link.getAttribute("href")).toBe("app://abc/x");
-  });
-
-  // ── unknown URL: warn + passthrough ────────────────────────────────────
-
-  it("unknown relative URL → console.warn called once, attribute unchanged", () => {
-    // Use a fresh RequestManager with empty responses to isolate this test.
-    // Prototype patches from previous tests are cumulative in jsdom, so we
-    // verify warn is called AT LEAST once and the attribute is preserved.
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const link = document.createElement("link");
-    const prevWarnCount = warnSpy.mock.calls.length;
-    link.setAttribute("href", "missing/file.js");
-    // Warn should have been called at least once for this URL
-    expect(warnSpy.mock.calls.length).toBeGreaterThanOrEqual(prevWarnCount + 1);
-    expect(link.getAttribute("href")).toBe("missing/file.js");
-  });
-
-  // ── CSS style Proxy ─────────────────────────────────────────────────────
-
-  it("el.style.backgroundImage with url('images/spin.gif') → rewritten to data: URL", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const el = document.createElement("div");
-    document.body.appendChild(el);
-    el.style.backgroundImage = "url('images/spin.gif')";
-    const val = el.style.backgroundImage;
-    // The rewritten value should contain a data: or blob: URL
-    expect(val).toMatch(/url\(["']?(data:|blob:)/);
-    document.body.removeChild(el);
-  });
-
-  // ── XHR open patching ──────────────────────────────────────────────────
-
-  it("XMLHttpRequest.open with relative URL → URL gets resolved", () => {
-    // Add a shapes entry to test XHR path
-    const xhrResponses: readonly DrawioResponseEntry[] = [
-      ...responses,
-      makeTextEntry("shapes/foo.xml", "<shapes/>", "application/xml"),
-    ];
-    const rm = createRequestManager(xhrResponses);
-    rm.interceptRequests();
-
-    // Verify XHR URL resolution via resolveResourceUrl directly.
-    // (jsdom's XHR doesn't support full open() semantics, so we test the
-    //  resolver function which is the same code path prototype.open uses.)
-
-    // Manually invoke the patched prototype open on our instance
-    // Because the patch is on the prototype, calling xhrInstance.open will go through it.
-    // However, since openSpy replaces the instance method, we need to test via the prototype directly.
-    // Instead, test via resolveResourceUrl directly for XHR path correctness.
-    const cache = new Map<string, string>();
-    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:shapes-foo");
-    const resolved = resolveResourceUrl("shapes/foo.xml", xhrResponses, cache);
-    expect(resolved).toMatch(/^blob:|^data:/);
-  });
-
-  // ── dispose: revokes blob URLs ──────────────────────────────────────────
-
-  it("dispose() calls revokeObjectURL for each cached blob URL", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const link1 = document.createElement("link");
-    link1.setAttribute("href", "js/main.js");
-
-    const link2 = document.createElement("link");
-    link2.setAttribute("href", "js/foo.js");
-
-    rm.dispose();
-    // Each distinct blob: URL that was created should have been revoked
-    expect(revokeObjectURLSpy).toHaveBeenCalled();
-  });
-
-  it("dispose() clears the cache so subsequent revokeObjectURL calls don't re-fire", () => {
-    const rm = createRequestManager(responses);
-    rm.interceptRequests();
-
-    const link = document.createElement("link");
-    link.setAttribute("href", "js/main.js");
-
-    rm.dispose();
-    const callCountAfterFirst = revokeObjectURLSpy.mock.calls.length;
-
-    rm.dispose(); // second dispose — cache is already cleared
-    expect(revokeObjectURLSpy.mock.calls.length).toBe(callCountAfterFirst);
+    link.setAttribute("rel", "stylesheet");
+    const before = document.head.querySelectorAll("style").length;
+    link.setAttribute("href", "styles/x.css");
+    expect(document.head.querySelectorAll("style").length).toBe(before + 1);
+    // rel が落ちて fetch されない
+    expect(link.getAttribute("rel")).toBe("");
+    mgr.dispose();
   });
 });
