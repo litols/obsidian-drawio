@@ -90,3 +90,67 @@
 .drawio-settings-error:empty {
   display: none;
 }
+
+/* ── drawio preview mode ────────────────────────────────────────────────── */
+
+.drawio-image-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.drawio-image-preview-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background: var(--background-primary);
+}
+
+.drawio-image-preview-viewport:active {
+  cursor: grabbing;
+}
+
+.drawio-image-preview-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  user-select: none;
+  will-change: transform;
+}
+
+.drawio-image-preview-toolbar {
+  position: absolute;
+  right: var(--size-4-2);
+  bottom: var(--size-4-2);
+  display: flex;
+  gap: var(--size-2-1);
+  padding: var(--size-2-1);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+
+.drawio-image-preview-toolbar button {
+  min-width: 28px;
+}
+
+.drawio-preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--size-4-2);
+  width: 100%;
+  height: 100%;
+  padding: var(--size-4-4);
+  text-align: center;
+}
+
+.drawio-preview-error-message {
+  color: var(--text-error);
+  margin: 0;
+}

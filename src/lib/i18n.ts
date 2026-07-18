@@ -69,6 +69,12 @@ export type TranslationKey =
   | "menu.editInDrawio"
   | "action.newDiagram"
   | "embed.clickToEdit"
+  | "preview.error.render"
+  | "preview.openEditor"
+  | "preview.zoom.in"
+  | "preview.zoom.out"
+  | "preview.zoom.fit"
+  | "preview.zoom.reset"
   | "notice.createDiagramFailed";
 
 const EN: Record<TranslationKey, string> = {
@@ -143,6 +149,12 @@ const EN: Record<TranslationKey, string> = {
   "menu.editInDrawio": "Edit in draw.io",
   "action.newDiagram": "New diagram",
   "embed.clickToEdit": "Click to edit",
+  "preview.error.render": "Failed to render the preview",
+  "preview.openEditor": "Open in editor",
+  "preview.zoom.in": "Zoom in",
+  "preview.zoom.out": "Zoom out",
+  "preview.zoom.fit": "Fit to view",
+  "preview.zoom.reset": "Reset zoom (100%)",
   "notice.createDiagramFailed": "Failed to create the diagram",
 };
 
@@ -217,6 +229,12 @@ const JA: Record<TranslationKey, string> = {
   "menu.editInDrawio": "draw.io で編集",
   "action.newDiagram": "新規ダイアグラム",
   "embed.clickToEdit": "クリックして編集",
+  "preview.error.render": "プレビューの描画に失敗しました",
+  "preview.openEditor": "エディタで開く",
+  "preview.zoom.in": "拡大",
+  "preview.zoom.out": "縮小",
+  "preview.zoom.fit": "全体表示",
+  "preview.zoom.reset": "等倍に戻す (100%)",
   "notice.createDiagramFailed": "ダイアグラムの作成に失敗しました",
 };
 

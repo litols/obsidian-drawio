@@ -29,7 +29,7 @@ export default mergeConfig(
     test: {
       environment: "node",
       globals: false,
-      include: ["src/**/*.{test,spec}.ts"],
+      include: ["src/**/*.{test,spec}.{ts,tsx}"],
       passWithNoTests: true,
     },
   }),
