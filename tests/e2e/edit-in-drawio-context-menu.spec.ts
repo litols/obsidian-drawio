@@ -2,11 +2,7 @@ import { test, expect } from "@playwright/test";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import {
-  waitForLayoutReady,
-  getActiveFilePath,
-  enterDrawioEditor,
-} from "../helpers/obsidian-app.ts";
+import { waitForLayoutReady, getActiveFilePath } from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
 // 今回追加: `.drawio.svg` / `.drawio.png` のコンテキストメニューに
@@ -110,15 +106,14 @@ test("edit-in-drawio-context-menu: file menu adds 'Edit in draw.io' and opens th
   expect(md.found).toBe(true);
   expect(md.titles.some((t) => /Edit in draw\.io/i.test(t))).toBe(false);
 
-  // 項目の onClick を実行すると drawio ビューが (既定の) プレビューで開く
+  // 「Edit in draw.io」の onClick は編集意図なのでエディタで直接開く
   await runFileMenu("samples/sample.drawio.svg", true);
 
   await expect
     .poll(() => getActiveFilePath(window), { timeout: 10_000 })
     .toMatch(/sample\.drawio\.svg$/);
 
-  // 編集モードへ遷移してエディタ iframe を起動する
-  await enterDrawioEditor(window);
+  // enterDrawioEditor を呼ばずともエディタ iframe が起動する (mode:"editor" 直開き)
   const handle = getDrawioFrame(window);
   await handle.waitForReady(30_000);
 

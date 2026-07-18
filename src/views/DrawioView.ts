@@ -1,4 +1,12 @@
-import { FileView, Notice, setIcon, type EventRef, type TFile, type WorkspaceLeaf } from "obsidian";
+import {
+  FileView,
+  Notice,
+  setIcon,
+  type EventRef,
+  type TFile,
+  type ViewStateResult,
+  type WorkspaceLeaf,
+} from "obsidian";
 import {
   readDrawioFile,
   writeDrawioFile,
@@ -63,6 +71,9 @@ export class DrawioView extends FileView {
   private modeActionEl: HTMLElement | null = null;
   // in-flight のモード遷移中は追加の遷移を無視する (二重マウント禁止)。
   private transitioning = false;
+  // setViewState の state.mode で渡された初期モード上書き (編集導線用)。
+  // 次の onLoadFile で 1 度だけ消費される。未指定時は defaultOpenMode に従う。
+  private pendingModeOverride: DrawioOpenMode | null = null;
   // 進行中の保存 (handleSave / export roundtrip) を追跡する Promise チェーン (要件 3.3, 3.4)。
   private pendingSaves: Promise<unknown> = Promise.resolve();
   // svg/png の export roundtrip 完了を待つためのバリア resolver。
@@ -262,6 +273,21 @@ export class DrawioView extends FileView {
     }, 400);
   }
 
+  /**
+   * setViewState の state.mode を初期モード上書きとして捕捉する。
+   * 「draw.io で編集」メニューや「新規ダイアグラム」など編集意図の導線から
+   * `{ mode: "editor" }` を渡すとプレビューを経ずエディタで開く (要件 4.3 の導線整合)。
+   */
+  override async setState(state: unknown, result: ViewStateResult): Promise<void> {
+    if (state != null && typeof state === "object") {
+      const mode = (state as { mode?: unknown }).mode;
+      if (mode === "preview" || mode === "editor") {
+        this.pendingModeOverride = mode;
+      }
+    }
+    await super.setState(state, result);
+  }
+
   async onLoadFile(file: TFile): Promise<void> {
     const result = await readDrawioFile(file, this.app.vault);
     this.currentFormat = result.format;
@@ -276,8 +302,11 @@ export class DrawioView extends FileView {
 
     this.ensureModeAction();
 
-    // 既定表示モード設定から初期モードを決定する (要件 1.1, 1.4)。
-    this.mode = this.plugin.settings.drawio?.defaultOpenMode ?? "preview";
+    // 初期モード: state.mode 上書き (編集導線) を優先し、無ければ既定表示モード設定
+    // に従う (要件 1.1, 1.4)。上書きは 1 度だけ消費する。
+    this.mode =
+      this.pendingModeOverride ?? this.plugin.settings.drawio?.defaultOpenMode ?? "preview";
+    this.pendingModeOverride = null;
     if (this.mode === "editor") {
       await this.mountEditor(file, result.xml);
     } else {

@@ -32,6 +32,9 @@ vi.mock("obsidian", () => {
     addAction(_icon: string, _title: string, _cb: () => void): HTMLElement {
       return document.createElement("div");
     }
+    async setState(_state: unknown, _result: unknown): Promise<void> {
+      // 実 Obsidian の FileView.setState 相当 (ここでは no-op)
+    }
   }
   class Notice {
     constructor(msg?: string) {
@@ -179,6 +182,40 @@ describe("DrawioView 初期マウント分岐", () => {
     expect(bridge.mount).toHaveBeenCalledTimes(1);
     expect(h.createPreviewBridge).not.toHaveBeenCalled();
     expect(view.currentMode).toBe("editor");
+  });
+
+  it("state.mode='editor' は defaultOpenMode=preview を上書きしてエディタで開く (編集導線)", async () => {
+    const { bridge } = makeEditorBridge();
+    h.createDrawioBridge.mockReturnValue(bridge);
+    const file: FakeFile = { path: "a.drawio", name: "a.drawio" };
+    const { view } = setup("preview", XML_DOC); // 既定はプレビュー
+    (view as unknown as { file: FakeFile }).file = file;
+
+    // 「draw.io で編集」/「新規ダイアグラム」導線相当: state.mode=editor
+    await view.setState({ file: file.path, mode: "editor" }, {} as never);
+    await view.onLoadFile(file as never);
+
+    expect(h.createDrawioBridge).toHaveBeenCalledTimes(1);
+    expect(h.createPreviewBridge).not.toHaveBeenCalled();
+    expect(view.currentMode).toBe("editor");
+  });
+
+  it("state.mode 上書きは 1 回のみ消費され、次回は defaultOpenMode に戻る", async () => {
+    const { bridge: editor } = makeEditorBridge();
+    h.createDrawioBridge.mockReturnValue(editor);
+    const { bridge: preview } = makePreviewBridge();
+    h.createPreviewBridge.mockReturnValue(preview);
+    const file: FakeFile = { path: "a.drawio", name: "a.drawio" };
+    const { view } = setup("preview", XML_DOC);
+    (view as unknown as { file: FakeFile }).file = file;
+
+    await view.setState({ file: file.path, mode: "editor" }, {} as never);
+    await view.onLoadFile(file as never);
+    expect(view.currentMode).toBe("editor");
+
+    // 2 回目 (setState 上書きなし) は既定の preview に戻る
+    await view.onLoadFile(file as never);
+    expect(view.currentMode).toBe("preview");
   });
 
   it("defaultOpenMode=preview かつ svg 単一ページは ImagePreview をマウントする", async () => {

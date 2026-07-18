@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTINGS,
   migrateSettings,
   saveSettings,
+  type DrawioOpenMode,
   type PluginSettings,
 } from "./lib/settings";
 import { createReactMountManager, type ReactMountManager } from "./lib/react-mount";
@@ -98,7 +99,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
             item
               .setTitle(t("menu.editInDrawio"))
               .setIcon("pencil")
-              .onClick(() => void this.openInDrawioView(file));
+              .onClick(() => void this.openInDrawioView(file, { mode: "editor" }));
           });
         }),
       );
@@ -218,13 +219,19 @@ export default class ObsidianDrawioPlugin extends Plugin {
     return view.file ? view : null;
   }
 
-  /** 指定ファイルを drawio 編集ビューで開く。 */
-  async openInDrawioView(file: TFile): Promise<void> {
+  /**
+   * 指定ファイルを drawio ビューで開く。
+   * options.mode を指定するとその表示モードで開く (未指定時は既定表示モード設定に従う)。
+   * 編集意図の導線 (コンテキストメニュー / 新規ダイアグラム) は mode: "editor" を渡す。
+   */
+  async openInDrawioView(file: TFile, options?: { mode?: DrawioOpenMode }): Promise<void> {
     const leaf = this.app.workspace.getLeaf(false);
+    const state: Record<string, unknown> = { file: file.path };
+    if (options?.mode) state.mode = options.mode;
     await leaf.setViewState({
       type: DRAWIO_VIEW_TYPE,
       active: true,
-      state: { file: file.path },
+      state,
     });
     this.app.workspace.revealLeaf(leaf);
   }
@@ -241,7 +248,8 @@ export default class ObsidianDrawioPlugin extends Plugin {
         path = `${base}Untitled ${i}.drawio`;
       }
       const file = await this.app.vault.create(path, EMPTY_DRAWIO_XML);
-      await this.openInDrawioView(file);
+      // 新規作成は編集意図なのでエディタで直接開く
+      await this.openInDrawioView(file, { mode: "editor" });
     } catch (error) {
       console.error("[obsidian-drawio] create new diagram failed:", error);
       new Notice(t("notice.createDiagramFailed"));
