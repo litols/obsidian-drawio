@@ -6,6 +6,7 @@ import {
   type PluginSettings,
 } from "./lib/settings";
 import { createReactMountManager, type ReactMountManager } from "./lib/react-mount";
+import { createDrawioAssetCache, type DrawioAssetCache } from "./lib/drawio-asset-cache";
 import { registerDemoCommand } from "./commands/demo-command";
 import { DrawioView, DRAWIO_VIEW_TYPE } from "./views/DrawioView";
 import { registerPerDiagramConfigLifecycle } from "./lib/per-diagram-config";
@@ -31,6 +32,8 @@ export default class ObsidianDrawioPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
   reactMountManager!: ReactMountManager;
   themeBridge!: ThemeBridge;
+  /** エディタバンドル / viewer スクリプトのセッションキャッシュ (アセット I/O の唯一の所有者) */
+  assetCache!: DrawioAssetCache;
   events: Events = new Events();
   externalWatcher: ExternalWatcher | null = null;
   api!: DrawioPublicApi;
@@ -47,6 +50,7 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
       this.reactMountManager = createReactMountManager();
       this.themeBridge = createThemeBridge(this, () => this.settings.drawio!);
+      this.assetCache = createDrawioAssetCache(this.app.vault.adapter, this.manifest.dir ?? "");
 
       this.externalWatcher = createExternalWatcher(
         this,
@@ -151,6 +155,32 @@ export default class ObsidianDrawioPlugin extends Plugin {
         },
       });
 
+      this.addCommand({
+        id: "drawio-enter-editor",
+        name: t("command.enterEditor"),
+        callback: () => {
+          const view = this.getActiveDrawioView();
+          if (!view) {
+            new Notice(t("notice.openDrawioFileFirst"));
+            return;
+          }
+          void view.enterEditorMode();
+        },
+      });
+
+      this.addCommand({
+        id: "drawio-enter-preview",
+        name: t("command.enterPreview"),
+        callback: () => {
+          const view = this.getActiveDrawioView();
+          if (!view) {
+            new Notice(t("notice.openDrawioFileFirst"));
+            return;
+          }
+          void view.enterPreviewMode();
+        },
+      });
+
       registerDemoCommand(this);
     } catch (error) {
       console.error("[obsidian-drawio] onload failed:", error);
@@ -163,6 +193,8 @@ export default class ObsidianDrawioPlugin extends Plugin {
     this.externalWatcher?.dispose();
     this.externalWatcher = null;
     this.themeBridge?.dispose();
+    // 保持していたエディタ / viewer アセットを解放する (要件 5.4)
+    this.assetCache?.dispose();
     for (let i = this.disposers.length - 1; i >= 0; i--) {
       try {
         this.disposers[i]();
@@ -176,6 +208,14 @@ export default class ObsidianDrawioPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await saveSettings(this, this.settings);
+  }
+
+  /** アクティブな leaf が DrawioView ならそれを返す (コマンドのモード切替用)。 */
+  private getActiveDrawioView(): DrawioView | null {
+    const leaf = this.app.workspace.getMostRecentLeaf();
+    if (!leaf || leaf.view?.getViewType() !== DRAWIO_VIEW_TYPE) return null;
+    const view = leaf.view as DrawioView;
+    return view.file ? view : null;
   }
 
   /** 指定ファイルを drawio 編集ビューで開く。 */

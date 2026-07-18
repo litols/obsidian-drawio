@@ -4,6 +4,8 @@ export type TranslationKey =
   | "command.editPerDiagramSettings"
   | "command.refreshFromDisk"
   | "command.openDemo"
+  | "command.enterEditor"
+  | "command.enterPreview"
   | "notice.openDrawioFileFirst"
   | "notice.noDrawioFileOpen"
   | "notice.reloadFailed"
@@ -81,6 +83,8 @@ const EN: Record<TranslationKey, string> = {
   "command.editPerDiagramSettings": "drawio: Edit per-diagram settings",
   "command.refreshFromDisk": "drawio: Refresh diagram from disk",
   "command.openDemo": "drawio: Open demo",
+  "command.enterEditor": "drawio: Edit diagram",
+  "command.enterPreview": "drawio: Back to preview",
   "notice.openDrawioFileFirst": "Open a draw.io file first",
   "notice.noDrawioFileOpen": "No draw.io file is open",
   "notice.reloadFailed": "Failed to reload diagram",
@@ -162,6 +166,8 @@ const JA: Record<TranslationKey, string> = {
   "command.editPerDiagramSettings": "drawio: 図の設定を編集",
   "command.refreshFromDisk": "drawio: ディスクから再読み込み",
   "command.openDemo": "drawio: デモを開く",
+  "command.enterEditor": "drawio: 図を編集",
+  "command.enterPreview": "drawio: プレビューに戻る",
   "notice.openDrawioFileFirst": "draw.io ファイルを開いた状態で実行してください",
   "notice.noDrawioFileOpen": "draw.io ファイルが開かれていません",
   "notice.reloadFailed": "ダイアグラムの再読み込みに失敗しました",

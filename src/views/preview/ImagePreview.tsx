@@ -7,6 +7,8 @@ export interface ImagePreviewProps {
   src: string;
   /** ダブルクリックでの編集モード遷移 (要件 3.1) */
   onRequestEdit: () => void;
+  /** 画像 decode 失敗時のフォールバック通知 (要件 1.5) */
+  onError?: () => void;
 }
 
 const IDENTITY: ZoomPanState = { scale: 1, translateX: 0, translateY: 0 };
@@ -19,7 +21,7 @@ const BUTTON_ZOOM_FACTOR = 1.2;
  * ホイール / ピンチ / ドラッグ / ズームボタンで拡大縮小・パンできる読み取り専用ビュー。
  * 座標変換は zoom-pan 純関数に委譲し CSS transform で適用する (要件 1.2, 2.1-2.3, 2.5)。
  */
-export const ImagePreview: React.FC<ImagePreviewProps> = ({ src, onRequestEdit }) => {
+export const ImagePreview: React.FC<ImagePreviewProps> = ({ src, onRequestEdit, onError }) => {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const imgRef = React.useRef<HTMLImageElement | null>(null);
   const [state, setState] = React.useState<ZoomPanState>(IDENTITY);
@@ -123,6 +125,7 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ src, onRequestEdit }
           className="drawio-image-preview-img"
           src={src}
           onLoad={handleImgLoad}
+          onError={onError}
           draggable={false}
           alt=""
           style={{
