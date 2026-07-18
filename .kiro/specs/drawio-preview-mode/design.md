@@ -410,6 +410,9 @@ export function panBy(state: ZoomPanState, dx: number, dy: number): ZoomPanState
 ### settings
 
 - `DrawioSettings` に `defaultOpenMode: DrawioOpenMode` (`"preview" | "editor"`) を追加。`DEFAULT_DRAWIO_SETTINGS.defaultOpenMode = "preview"`
+- `DrawioSettings` に `previewBackground: string` (CSS color 値) を追加。既定 `"#ffffff"` (要件 6.4-6.5)。`migrateSettings` は非文字列・空文字を既定値に補完。SettingsTab には `addColorPicker` の行を 1 つ追加する (settings-ui-refresh が確立した Setting API 構造への加法的追加)
+- 適用先: ImagePreview のコンテナ背景 / preview iframe の body 背景 (render config で background を渡す)。変更はプレビューの (再) マウント時に反映 (要件 6.6)
+- **プレビューの表示領域** (要件 2.6): プレビューコンテナ (画像経路・viewer iframe 経路とも) は `contentEl` の幅・高さ 100% を占有する。エディタ経路が行っている `contentEl` の padding 除去・height 100% 設定と同等の処理をプレビューマウント時にも行う
 - `migrateSettings`: 有効値以外・欠損は `"preview"` に補完。`settingsVersion` は 2 のまま (加法的変更)
 - SettingsTab には既存パターンで最小のドロップダウン 1 項目のみ追加 (UI 刷新は settings-ui-refresh の所掌)
 
