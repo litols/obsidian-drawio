@@ -142,7 +142,7 @@ vite.preview-init.config.ts        # preview-init.js の IIFE ビルド設定
 - `src/iframe/init/frame-messenger.ts` — 受信データの `typeof` 判定でオブジェクト直接受理
 - `src/views/DrawioView.ts` — モード状態機械、プレビューのマウント/破棄、遷移アクション、プレビュー中の外部変更追従、pending save flush
 - `src/main.ts` — `DrawioAssetCache` の所有と dispose、モード切替コマンド登録
-- `src/views/SettingsTab.tsx` — `defaultOpenMode` ドロップダウン 1 項目の最小追加 (レイアウト刷新は settings-ui-refresh の所掌)
+- `src/views/SettingsTab.ts` — `defaultOpenMode` ドロップダウン 1 項目の最小追加 (実装時メモ: settings-ui-refresh spec の Setting API 再構築に同梱して提供された。本 spec 側の追加作業は不要となった)
 - `src/lib/i18n.ts` — 新規 UI 文言キー
 - `styles.css` — プレビューコンテナ / ツールバー / エラーパネルのスタイル
 - `package.json` — build スクリプトに preview-init ビルド追加
