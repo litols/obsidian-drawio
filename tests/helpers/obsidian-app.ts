@@ -27,6 +27,7 @@ interface ObsidianApp {
   };
   setting: {
     open(): void;
+    close(): void;
     openTabById(id: string): void;
   };
   commands: {
@@ -76,6 +77,33 @@ export async function ensurePluginEnabled(page: Page, id: string): Promise<void>
 
 export async function getActiveFilePath(page: Page): Promise<string | null> {
   return page.evaluate(() => window.app.workspace.getActiveFile?.()?.path ?? null);
+}
+
+/** 設定モーダルを開き、指定プラグインの設定タブへ切り替える。 */
+export async function openPluginSettings(page: Page, pluginId: string): Promise<void> {
+  await waitForLayoutReady(page);
+  await page.evaluate((id) => {
+    window.app.setting.open();
+    window.app.setting.openTabById(id);
+  }, pluginId);
+}
+
+/** 設定モーダルを閉じる。 */
+export async function closeSettings(page: Page): Promise<void> {
+  await page.evaluate(() => window.app.setting.close());
+}
+
+/** 指定プラグインの永続化済み drawio 設定オブジェクトを取得する。 */
+export async function getDrawioSettings<T = Record<string, unknown>>(
+  page: Page,
+  pluginId: string,
+): Promise<T> {
+  return page.evaluate((id) => {
+    const plugin = window.app.plugins.plugins[id] as
+      | { settings?: { drawio?: unknown } }
+      | undefined;
+    return plugin?.settings?.drawio as T;
+  }, pluginId);
 }
 
 /**
