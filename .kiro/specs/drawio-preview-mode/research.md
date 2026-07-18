@@ -58,6 +58,16 @@
   - `drawio-iframe-resource-serving` spec は Non-Goal で「キャッシュ機構は別 spec」と明記し、research.md Follow-up に「main.ts レベルで Plugin lifecycle に紐付くキャッシュを追加」とある。**本 spec はその Follow-up の実体化**であり、bootstrap アーキテクチャ・DrawioBridge 公開 API・postMessage 契約を壊さない制約を負う (オブジェクト受理は加法的拡張として同 spec の revalidation 対象)
 - **Implications**: 画像プレビュー経路が一段軽量化 (read ゼロ)。preview-init は frame-globals を流用し DRAWIO_BASE_URL を追加設定する
 
+### preview→editor 遷移クラッシュの根本原因調査 (2026-07-19, debug teammate)
+- **Context**: 手動確認中に preview→editor 遷移で Obsidian ごとクラッシュ
+- **Findings**:
+  - 根本原因は「除外後アセット一式 (~110MB 文字列群) の一括 postMessage 転送」によるレンダラメモリスパイク。実測 (Electron getAppMetrics): baseline 253MB → 初回 editor mount で 801MB (**+550MB スパイク**)、以後 830〜1420MB で高止まり
+  - 切り分け実験: JSON.stringify 送信へ戻すと悪化 (ピーク 1.98GB)。**structured clone は主因ではない** (仮説棄却)。旧実装で顕在化しなかったのはヘッドルーム差
+  - 自動 E2E が pass するのは同一コードパスでもメモリ余裕がある隔離環境のため (非決定的クラッシュ)
+  - `performance.memory` は iframe realm を含まず実態を隠す。計測は getAppMetrics RSS が必須
+  - Crashpad はこの Electron 構成で無効のためダンプ不在。OOM abort 時の OS ダイアログが teardown の "No dialog is showing" と整合
+- **Implications**: 修正はアセット配送の段階化 (design.md「アセット段階配信」章)。ユーザー選択 (2026-07-19): 今回はチャンク配信+Blob 化+コア/テール 2 段構成で解消し、フルオンデマンド配信は将来 spec とする
+
 ## Architecture Pattern Evaluation
 
 | Option | Description | Strengths | Risks / Limitations | Notes |

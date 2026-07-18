@@ -416,6 +416,19 @@ export function panBy(state: ZoomPanState, dx: number, dy: number): ZoomPanState
 - `migrateSettings`: 有効値以外・欠損は `"preview"` に補完。`settingsVersion` は 2 のまま (加法的変更)
 - SettingsTab には既存パターンで最小のドロップダウン 1 項目のみ追加 (UI 刷新は settings-ui-refresh の所掌)
 
+## アセット段階配信 (追補: 2026-07-19 OOM 対策)
+
+**問題**: エディタ起動時にアセット一式 (~110MB 相当の文字列群) を単一 postMessage で iframe へ転送すると、renderer RSS が 1 遷移あたり約 +550MB スパイクし、実運用セッションでは renderer OOM によりアプリごとクラッシュする (実測値と切り分けは research.md 参照。structured clone / JSON 文字列のどちらでも発生し、送信形式は主因ではない)。
+
+**対策 (要件 5.5, 5.6)**:
+- **チャンク分割配信**: bridge は responses を単一メッセージで送らず、上限サイズ (目安 8MB) のチャンク列 `{action:"assets", entries, group, final}` として送信する
+- **iframe 側の即時 Blob 化**: request-manager はチャンク受信のたびに各エントリを即座に Blob / Blob URL へ変換し、**ソース文字列を保持しない** (href→URL の Map のみ保持)。Blob は Chromium の blob storage 管理下に置かれ V8 ヒープを占有しない
+- **コア/テール 2 群配信**: 起動に必須のコア群 (styles/css/img/images/resources/mxgraph 等) を先行配信し、コア完了通知後に CSS 注入 → app.min.js 注入 → App.main() を実行。重量テール群 (stencils/shapes/templates/math4/plugins/mermaid) は `{event:"init"}` 後にバックグラウンドで逐次配信する
+- **配信前アクセスの劣化許容**: テール到着前に該当アセットが参照された場合は既存の warn + passthrough で劣化し、起動は阻害しない (到着後の再参照で解決)
+- **theme 適用タイミング**: bridge ready 前の `applyTheme` による "sendMessage() called before mount" warn を解消し、ready 後に適用する
+- 検証: Electron `getAppMetrics()` の RSS 計装で preview→editor 遷移のスパイクが大幅減 (目標: 単一遷移 +200MB 未満) であることを E2E で確認。`performance.memory` は iframe realm を含まないため使用しない
+- 将来課題 (別 spec): フルオンデマンド配信 (research.md の Architecture Pattern Evaluation 参照)
+
 ## Error Handling
 
 ### Error Strategy

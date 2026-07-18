@@ -121,3 +121,17 @@
   - 画像プレビューと viewer iframe の背景に適用され、変更後の (再) マウントから反映される
   - _Requirements: 6.4, 6.5, 6.6_
   - _Depends: 6.1_
+
+- [ ] 7. アセット段階配信による OOM 修正 (追補: 2026-07-19 クラッシュ調査結果)
+- [ ] 7.1 チャンク配信プロトコルと iframe 側 Blob 化
+  - bridge がアセットをコア群/テール群の 2 段でチャンク分割送信し、コア完了 → CSS 注入 → app 起動 → init 後にテール配信の順序を実装する
+  - request-manager がチャンク受信ごとに即 Blob URL 化してソース文字列を破棄し、href→URL Map のみ保持する
+  - bridge ready 前の applyTheme による "sendMessage() called before mount" warn を解消する
+  - ユニットテストでチャンク順序・Blob 化と文字列破棄・テール到着前アクセスの劣化 (warn+passthrough) が検証されている
+  - _Requirements: 5.5, 5.6_
+  - _Boundary: drawio-bridge, iframe-init_
+- [ ] 7.2 メモリスパイクの E2E 検証
+  - Electron getAppMetrics の RSS 計装で preview→editor 遷移のメモリスパイクが +200MB 未満であることを検証する (performance.memory は使用しない)
+  - 既存エディタ E2E (起動・編集・保存・回帰) が段階配信後も green であることを確認する
+  - _Requirements: 5.5, 3.5_
+  - _Depends: 7.1_
