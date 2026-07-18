@@ -46,7 +46,7 @@
   - IIFE ビルド設定を追加し、build スクリプトで preview-init.js が dist に出力される
   - _Requirements: 1.3, 2.1, 2.2, 2.3, 2.4_
   - _Boundary: preview-init_
-- [ ] 3.2 (P) PreviewBridge の実装
+- [x] 3.2 (P) PreviewBridge の実装
   - viewer iframe の親側ライフサイクル (idle → loading → ready | error → disposed) を実装する
   - bootstrap iframe 生成 → preview-init / viewer スクリプト注入 → render 送信の順で描画し、タイムアウト超過は error コールバックへ
   - ファイル書き込みに至る API を持たない (読み取り専用の構造的保証)
