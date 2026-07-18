@@ -173,8 +173,8 @@ export function bootstrapIframeInit(input: BootstrapIframeInitInput): () => void
       console.warn("[drawio-frame] assets received before configure — dropping chunk");
       return;
     }
-    // Blob-ize immediately; source strings are not retained (OOM 対策).
-    manager.ingest(msg.entries);
+    // コアは即時 Blob 化、テールは遅延保持 (OOM 対策)。
+    manager.ingest(msg.entries, msg.group);
 
     // コア群の最終チャンク到着で index.html の <link stylesheet> を inline 注入する。
     // (画像等コアアセットが Blob 化済みなので url(...) が正しく解決される)

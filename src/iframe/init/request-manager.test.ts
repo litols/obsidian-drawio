@@ -96,7 +96,7 @@ describe("rewriteCssUrlValue", () => {
 describe("createRequestManager: ingest + 解決", () => {
   it("ingest でソースを Blob 化し、interceptRequests 後に script.src が blob へ解決される", () => {
     const mgr = createRequestManager();
-    mgr.ingest([textEntry("js/foo.js", "console.log(1)")]);
+    mgr.ingest([textEntry("js/foo.js", "console.log(1)")], "core");
     mgr.interceptRequests();
 
     const script = document.createElement("script");
@@ -107,7 +107,7 @@ describe("createRequestManager: ingest + 解決", () => {
 
   it("img.src / XHR open もマップ経由で解決される", () => {
     const mgr = createRequestManager();
-    mgr.ingest([b64Entry("img/l.png", "QUJD".repeat(400), "image/png;base64")]);
+    mgr.ingest([b64Entry("img/l.png", "QUJD".repeat(400), "image/png;base64")], "core");
     mgr.interceptRequests();
 
     const img = document.createElement("img");
@@ -133,9 +133,49 @@ describe("createRequestManager: ingest + 解決", () => {
 
   it("dispose で発行した blob URL が revoke される", () => {
     const mgr = createRequestManager();
-    mgr.ingest([textEntry("js/a.js", "x"), textEntry("js/b.js", "y")]);
+    mgr.ingest([textEntry("js/a.js", "x"), textEntry("js/b.js", "y")], "core");
     mgr.dispose();
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("createRequestManager: tail の遅延 Blob 化 (7.1b)", () => {
+  it("tail はアクセスされるまで Blob 化されない", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([textEntry("stencils/aws.js", "console.log('aws')")], "tail");
+    mgr.interceptRequests();
+    // まだアクセスしていないので Blob は作られていない
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    mgr.dispose();
+  });
+
+  it("tail は初回アクセス時に Blob 化され、2 回目はキャッシュ再利用 (ソース破棄)", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([textEntry("stencils/aws.js", "console.log('aws')")], "tail");
+    mgr.interceptRequests();
+
+    const s1 = document.createElement("script");
+    s1.setAttribute("src", "stencils/aws.js");
+    expect(s1.getAttribute("src")).toMatch(/^blob:/);
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+
+    // 2 回目のアクセスは urlMap ヒットで新規 Blob を作らない (ソースは破棄済み)
+    const s2 = document.createElement("script");
+    s2.setAttribute("src", "stencils/aws.js");
+    expect(s2.getAttribute("src")).toBe(s1.getAttribute("src"));
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    mgr.dispose();
+  });
+
+  it("tail は core と共存し、core は即時 Blob 化される", () => {
+    const mgr = createRequestManager();
+    mgr.ingest([textEntry("js/core.js", "x")], "core");
+    // core ingest 時点で 1 つ Blob 化済み
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    mgr.ingest([textEntry("shapes/mockup.js", "y")], "tail");
+    // tail は未アクセスなので増えない
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    mgr.dispose();
   });
 });
 
@@ -148,11 +188,14 @@ describe("createRequestManager: CSS <style> 注入", () => {
 
   it("injectStylesheets は index.html の link を <style> として注入し media を尊重する", () => {
     const mgr = createRequestManager();
-    mgr.ingest([
-      textEntry("styles/main.css", "body{background:url('img/bg.png')}", "text/css"),
-      textEntry("styles/hc.css", "body{color:red}", "text/css"),
-      b64Entry("img/bg.png", "QUJD".repeat(400), "image/png;base64"),
-    ]);
+    mgr.ingest(
+      [
+        textEntry("styles/main.css", "body{background:url('img/bg.png')}", "text/css"),
+        textEntry("styles/hc.css", "body{color:red}", "text/css"),
+        b64Entry("img/bg.png", "QUJD".repeat(400), "image/png;base64"),
+      ],
+      "core",
+    );
     mgr.interceptRequests();
     mgr.injectStylesheets(INDEX_HTML);
 
@@ -168,7 +211,7 @@ describe("createRequestManager: CSS <style> 注入", () => {
 
   it("動的 link.setAttribute('href') も CSS を <style> 化し fetch を無効化する", () => {
     const mgr = createRequestManager();
-    mgr.ingest([textEntry("styles/x.css", "body{margin:0}", "text/css")]);
+    mgr.ingest([textEntry("styles/x.css", "body{margin:0}", "text/css")], "core");
     mgr.interceptRequests();
 
     const link = document.createElement("link");

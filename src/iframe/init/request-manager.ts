@@ -6,11 +6,11 @@
  * populated incrementally as the parent streams asset chunks.
  *
  * OOM 対策 (要件 5.5, 5.6): アセットは親から `{action:"assets"}` チャンクで逐次届く。
- * `ingest()` は受信ごとに各エントリを即座に Blob URL へ変換し、**ソース文字列を保持しない**
- * (href→URL の Map のみ保持)。Blob は Chromium の blob storage 管理下に置かれ V8 ヒープを
- * 占有しないため、単一巨大 postMessage による renderer メモリスパイクを回避する。
- * 例外: CSP が `style-src blob:` を禁じるため text/css のみ `<style>` 注入用にテキストを保持する
- * (styles/ 群は数百 KB でありメモリ主因ではない)。
+ * コア群は `ingest("core")` で即座に Blob URL 化しソース文字列を破棄する (href→URL の Map のみ保持)。
+ * テール群 (stencils/shapes 等の重量・低頻度アセット) は `ingest("tail")` で文字列のまま遅延保持し、
+ * 初回アクセス時に Blob 化して直後に原ソースを破棄する。これにより未参照テールの Blob 先行実体化
+ * による恒常 RSS 増加を避けつつ、単一巨大 postMessage による transient スパイクも回避する。
+ * 例外: CSP が `style-src blob:` を禁じるため text/css (コア) のみ `<style>` 注入用にテキストを保持する。
  *
  * Allowed imports (in-iframe IIFE build):
  *   - ../shared/asset-types
@@ -27,12 +27,16 @@ export interface RequestManager {
   /** Patches DOM prototype APIs and XHR to intercept resource requests. */
   interceptRequests(): void;
   /**
-   * Blob-ize and register a batch of asset entries. Each entry's source string
-   * is converted to a Blob URL immediately and then dropped (only href→URL is
-   * kept). text/css entries additionally keep their decoded text for `<style>`
-   * injection (CSP forbids blob: in style-src).
+   * Register a batch of asset entries from a delivery chunk.
+   * - `group: "core"` → Blob-ize immediately and drop the source (only href→URL
+   *   is kept). text/css entries additionally keep their decoded text for
+   *   `<style>` injection (CSP forbids blob: in style-src).
+   * - `group: "tail"` → keep the source **lazily**; the entry is Blob-ized only
+   *   on first access, then its source is dropped. This avoids materialising
+   *   ~55MB of rarely-used tail assets (stencils/shapes/…) into blob storage
+   *   for diagrams that never reference them (要件 5.5 の恒常 RSS 抑制)。
    */
-  ingest(entries: readonly DrawioResponseEntry[]): void;
+  ingest(entries: readonly DrawioResponseEntry[], group: "core" | "tail"): void;
   /**
    * Pre-inject the stylesheets declared by drawio's index.html `<link
    * rel="stylesheet">` tags as inline `<style>` elements (with url(...)
@@ -120,8 +124,10 @@ export function rewriteCssUrlValue(value: string, urlMap: Map<string, string>): 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
 export const createRequestManager: CreateRequestManager = (): RequestManager => {
-  /** href → blob/data URL. The only retained representation of heavy assets. */
+  /** href → blob/data URL. Retained representation of core (and accessed tail) assets. */
   const urlMap = new Map<string, string>();
+  /** href → tail entry kept lazily until first access (then Blob-ized + dropped). */
+  const lazyEntries = new Map<string, DrawioResponseEntry>();
   /** href → decoded CSS text (text/css only; kept for `<style>` injection). */
   const cssText = new Map<string, string>();
   /** Links already turned into inline `<style>` (dedupe on repeated href set). */
@@ -129,9 +135,14 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
 
   let intercepted = false;
 
-  function ingest(entries: readonly DrawioResponseEntry[]): void {
+  function ingest(entries: readonly DrawioResponseEntry[], group: "core" | "tail"): void {
     for (const entry of entries) {
-      // text/css: keep decoded text for <style> injection (CSP blocks blob: css).
+      if (group === "tail") {
+        // 遅延保持: アクセスされるまで Blob 化しない (未使用テールの恒常 RSS 抑制)。
+        lazyEntries.set(entry.href, entry);
+        continue;
+      }
+      // core: 即時 Blob 化 (起動に必要)。text/css は <style> 注入用にテキストも保持。
       if (entry.mediaType.startsWith("text/css")) {
         const text = entry.mediaType.endsWith(";base64") ? atob(entry.source) : entry.source;
         cssText.set(entry.href, text);
@@ -141,6 +152,32 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
     }
   }
 
+  /**
+   * URL を解決する。urlMap ヒット → 返却。lazy(tail) ヒット → その場で Blob 化し
+   * urlMap へ移して原ソースを破棄。未マッチ → warn + passthrough (テール到着前の劣化許容)。
+   */
+  function resolve(url: string): string {
+    if (isPassthroughUrl(url)) return url;
+    const mapped = urlMap.get(url);
+    if (mapped !== undefined) return mapped;
+    const lazy = lazyEntries.get(url);
+    if (lazy !== undefined) {
+      const blobUrl = blobifyEntry(lazy);
+      urlMap.set(url, blobUrl);
+      lazyEntries.delete(url); // materialize on demand → drop source
+      return blobUrl;
+    }
+    console.warn("[drawio-frame] request-manager: unmatched URL:", url);
+    return url;
+  }
+
+  /** CSS 値内の url(...) を lazy 対応の resolve で書き換える。 */
+  function rewriteCss(value: string): string {
+    return value.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (_m, quote, rawUrl) => {
+      return `url(${quote}${resolve(rawUrl.trim())}${quote})`;
+    });
+  }
+
   /** Inline one stylesheet href as a <style> if we hold its CSS text. */
   function inlineStylesheet(link: HTMLLinkElement, href: string): boolean {
     const text = cssText.get(href);
@@ -148,7 +185,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
     if (!styleInjected.has(link)) {
       styleInjected.add(link);
       const styleEl = document.createElement("style");
-      styleEl.textContent = rewriteCssUrlValue(text, urlMap);
+      styleEl.textContent = rewriteCss(text);
       document.head.appendChild(styleEl);
     }
     return true;
@@ -164,7 +201,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
       const text = cssText.get(href);
       if (text === undefined) continue;
       const media = link.getAttribute("media");
-      const css = rewriteCssUrlValue(text, urlMap);
+      const css = rewriteCss(text);
       const styleEl = document.createElement("style");
       styleEl.dataset["drawioInjected"] = href;
       styleEl.textContent = media ? `@media ${media} {\n${css}\n}` : css;
@@ -185,7 +222,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
           origLinkSetAttr.call(this, "rel", "");
           return;
         }
-        origLinkSetAttr.call(this, qualifiedName, resolveFromMap(value, urlMap));
+        origLinkSetAttr.call(this, qualifiedName, resolve(value));
       } else {
         origLinkSetAttr.call(this, qualifiedName, value);
       }
@@ -203,7 +240,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
             this.rel = "";
             return;
           }
-          origLinkHrefSetter.call(this, resolveFromMap(value, urlMap));
+          origLinkHrefSetter.call(this, resolve(value));
         },
       });
     }
@@ -215,7 +252,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
       value: string,
     ): void {
       if (qualifiedName === "src") {
-        origScriptSetAttr.call(this, qualifiedName, resolveFromMap(value, urlMap));
+        origScriptSetAttr.call(this, qualifiedName, resolve(value));
       } else {
         origScriptSetAttr.call(this, qualifiedName, value);
       }
@@ -228,7 +265,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
       Object.defineProperty(HTMLScriptElement.prototype, "src", {
         ...scriptSrcDescriptor,
         set(value: string) {
-          origScriptSrcSetter.call(this, resolveFromMap(value, urlMap));
+          origScriptSrcSetter.call(this, resolve(value));
         },
       });
     }
@@ -240,7 +277,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
       value: string,
     ): void {
       if (qualifiedName === "src") {
-        origImgSetAttr.call(this, qualifiedName, resolveFromMap(value, urlMap));
+        origImgSetAttr.call(this, qualifiedName, resolve(value));
       } else {
         origImgSetAttr.call(this, qualifiedName, value);
       }
@@ -253,7 +290,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
       Object.defineProperty(HTMLImageElement.prototype, "src", {
         ...imgSrcDescriptor,
         set(value: string) {
-          origImgSrcSetter.call(this, resolveFromMap(value, urlMap));
+          origImgSrcSetter.call(this, resolve(value));
         },
       });
     }
@@ -278,7 +315,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
             set(target, prop, value) {
               if (typeof value === "string" && value.includes("url(")) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (target as any)[prop] = rewriteCssUrlValue(value, urlMap);
+                (target as any)[prop] = rewriteCss(value);
                 return true;
               }
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -300,7 +337,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
       password?: string | null,
     ): void {
       const urlStr = typeof url === "string" ? url : url.toString();
-      const resolved = resolveFromMap(urlStr, urlMap);
+      const resolved = resolve(urlStr);
       origXhrOpen.call(this, method, resolved, async ?? true, username ?? null, password ?? null);
     };
   }
@@ -313,6 +350,7 @@ export const createRequestManager: CreateRequestManager = (): RequestManager => 
     }
     urlMap.clear();
     cssText.clear();
+    lazyEntries.clear();
     // Prototype restoration is NOT done — iframe is destroyed by parent.
   }
 

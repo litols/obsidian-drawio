@@ -128,7 +128,7 @@ describe("bootstrapIframeInit", () => {
       parentWindow,
     );
     expect(ingestSpy).toHaveBeenCalledTimes(1);
-    expect(ingestSpy).toHaveBeenCalledWith(sampleEntries);
+    expect(ingestSpy).toHaveBeenCalledWith(sampleEntries, "core");
     expect(parentWindow.postMessage).toHaveBeenCalledWith(
       JSON.stringify({ event: "asset-ack", seq: 0 }),
       "*",
