@@ -188,6 +188,32 @@ describe("migrateSettings", () => {
     });
   });
 
+  describe("defaultOpenMode の検証", () => {
+    it.each(["preview", "editor"] as const)(
+      "有効な defaultOpenMode '%s' がそのまま採用される",
+      (mode) => {
+        const result = migrateSettings({ drawio: { defaultOpenMode: mode } });
+        expect(result.defaultOpenMode).toBe(mode);
+      },
+    );
+
+    it("defaultOpenMode 欠損 → デフォルト (preview) を返す", () => {
+      const result = migrateSettings({ drawio: {} });
+      expect(result.defaultOpenMode).toBe("preview");
+      expect(result.defaultOpenMode).toBe(DEFAULT_DRAWIO_SETTINGS.defaultOpenMode);
+    });
+
+    it("無効な defaultOpenMode 文字列 → デフォルト (preview) を返す", () => {
+      const result = migrateSettings({ drawio: { defaultOpenMode: "readonly" } });
+      expect(result.defaultOpenMode).toBe(DEFAULT_DRAWIO_SETTINGS.defaultOpenMode);
+    });
+
+    it("defaultOpenMode が非文字列 → デフォルト (preview) を返す", () => {
+      const result = migrateSettings({ drawio: { defaultOpenMode: 42 } });
+      expect(result.defaultOpenMode).toBe(DEFAULT_DRAWIO_SETTINGS.defaultOpenMode);
+    });
+  });
+
   describe("defaultLibraries / customLibraries の検証", () => {
     it("string 配列がそのまま採用される", () => {
       const result = migrateSettings({ drawio: { defaultLibraries: ["general", "aws4"] } });

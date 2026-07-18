@@ -41,6 +41,7 @@ export type DrawioLanguage =
   | "nl"
   | "it";
 export type DrawioSaveFormat = "keep" | "drawio";
+export type DrawioOpenMode = "preview" | "editor";
 
 export type ExternalSyncNotificationLevel = "silent" | "statusbar" | "notice" | "banner";
 
@@ -78,6 +79,11 @@ export interface DrawioSettings {
   ribbonEnabled: boolean;
   openDrawioSvg: boolean;
   openDrawioPng: boolean;
+  /**
+   * ダイアグラムファイルを開いたときの既定表示モード。
+   * "preview" は読み取り専用プレビュー、"editor" は従来のフルエディタを直接起動する。
+   */
+  defaultOpenMode: DrawioOpenMode;
   externalSync: ExternalSyncSettings;
 }
 
@@ -99,6 +105,7 @@ export const DEFAULT_DRAWIO_SETTINGS: DrawioSettings = {
   ribbonEnabled: true,
   openDrawioSvg: true,
   openDrawioPng: true,
+  defaultOpenMode: "preview",
   externalSync: { ...DEFAULT_EXTERNAL_SYNC_SETTINGS },
 };
 
@@ -123,6 +130,7 @@ const VALID_LANGUAGES: DrawioLanguage[] = [
   "it",
 ];
 const VALID_SAVE_FORMATS: DrawioSaveFormat[] = ["keep", "drawio"];
+const VALID_OPEN_MODES: DrawioOpenMode[] = ["preview", "editor"];
 
 export function migrateSettings(raw: unknown): DrawioSettings {
   if (raw == null || typeof raw !== "object") {
@@ -167,6 +175,11 @@ export function migrateSettings(raw: unknown): DrawioSettings {
   )
     ? (rawSaveFormat as DrawioSaveFormat)
     : DEFAULT_DRAWIO_SETTINGS.defaultSaveFormat;
+
+  const rawOpenMode = drawioInput.defaultOpenMode;
+  const defaultOpenMode: DrawioOpenMode = VALID_OPEN_MODES.includes(rawOpenMode as DrawioOpenMode)
+    ? (rawOpenMode as DrawioOpenMode)
+    : DEFAULT_DRAWIO_SETTINGS.defaultOpenMode;
 
   const baselineLibraries = Array.isArray(drawioInput.baselineLibraries)
     ? (drawioInput.baselineLibraries as string[]).filter((v) => typeof v === "string")
@@ -248,6 +261,7 @@ export function migrateSettings(raw: unknown): DrawioSettings {
       legacyOpenPng,
       DEFAULT_DRAWIO_SETTINGS.openDrawioPng,
     ),
+    defaultOpenMode,
     externalSync,
   };
 }
