@@ -129,7 +129,12 @@ function setup(defaultOpenMode: "preview" | "editor", read: ReadDrawioResult) {
     settings: { drawio: { defaultOpenMode, language: "auto", externalSync: {} } },
     reactMountManager: reactMount,
     themeBridge,
-    assetCache: { loadAll: vi.fn(), getViewerScript: vi.fn(), invalidate: vi.fn(), dispose: vi.fn() },
+    assetCache: {
+      loadAll: vi.fn(),
+      getViewerScript: vi.fn(),
+      invalidate: vi.fn(),
+      dispose: vi.fn(),
+    },
     manifest: { dir: "plug" },
     externalWatcher: { registerSelfWrite: vi.fn() },
     events: {

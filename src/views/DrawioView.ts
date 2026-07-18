@@ -410,9 +410,7 @@ export class DrawioView extends FileView {
   /** ビューヘッダにモード切替アクションを 1 度だけ追加する。 */
   private ensureModeAction(): void {
     if (this.modeActionEl) return;
-    this.modeActionEl = this.addAction("pencil", t("command.enterEditor"), () =>
-      this.toggleMode(),
-    );
+    this.modeActionEl = this.addAction("pencil", t("command.enterEditor"), () => this.toggleMode());
   }
 
   /** 現在モードに応じてアクションのアイコン / ラベルを更新する。 */

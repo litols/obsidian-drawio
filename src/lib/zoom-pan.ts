@@ -29,12 +29,7 @@ export function clampScale(scale: number): number {
  * content または container のサイズが 0 以下のときは等倍・原点の state を返す。
  */
 export function fitToContainer(content: Size, container: Size): ZoomPanState {
-  if (
-    content.width <= 0 ||
-    content.height <= 0 ||
-    container.width <= 0 ||
-    container.height <= 0
-  ) {
+  if (content.width <= 0 || content.height <= 0 || container.width <= 0 || container.height <= 0) {
     return { scale: 1, translateX: 0, translateY: 0 };
   }
   const scale = clampScale(

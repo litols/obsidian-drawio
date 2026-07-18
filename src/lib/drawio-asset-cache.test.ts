@@ -32,9 +32,7 @@ function buildAdapter(getFs: () => FakeFs) {
     }
     return { files, folders: [...folders] };
   });
-  const exists = vi.fn(async (path: string) =>
-    Object.prototype.hasOwnProperty.call(getFs(), path),
-  );
+  const exists = vi.fn(async (path: string) => Object.prototype.hasOwnProperty.call(getFs(), path));
   const read = vi.fn(async (path: string) => {
     const fs = getFs();
     if (!Object.prototype.hasOwnProperty.call(fs, path)) throw new Error(`read: ${path}`);

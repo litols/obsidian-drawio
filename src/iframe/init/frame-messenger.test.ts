@@ -107,7 +107,10 @@ describe("createIframeFrameMessenger", () => {
     const handler = vi.fn();
     messenger.onMessage(handler);
 
-    const payload = { action: "configure", responses: [{ href: "a", mediaType: "text/css", source: "x" }] };
+    const payload = {
+      action: "configure",
+      responses: [{ href: "a", mediaType: "text/css", source: "x" }],
+    };
     dispatchRaw(payload, parentWindow);
 
     expect(handler).toHaveBeenCalledTimes(1);

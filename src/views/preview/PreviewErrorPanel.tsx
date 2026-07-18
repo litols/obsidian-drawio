@@ -14,11 +14,7 @@ export interface PreviewErrorPanelProps {
 export const PreviewErrorPanel: React.FC<PreviewErrorPanelProps> = ({ message, onOpenEditor }) => (
   <div className="drawio-preview-error" role="alert">
     <p className="drawio-preview-error-message">{message}</p>
-    <button
-      type="button"
-      className="drawio-preview-error-action mod-cta"
-      onClick={onOpenEditor}
-    >
+    <button type="button" className="drawio-preview-error-action mod-cta" onClick={onOpenEditor}>
       {t("preview.openEditor")}
     </button>
   </div>

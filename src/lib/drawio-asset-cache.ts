@@ -29,10 +29,7 @@ export interface DrawioAssetCache extends DrawioAssetProvider {
   dispose(): void;
 }
 
-export function createDrawioAssetCache(
-  adapter: DataAdapter,
-  pluginDir: string,
-): DrawioAssetCache {
+export function createDrawioAssetCache(adapter: DataAdapter, pluginDir: string): DrawioAssetCache {
   const drawioDir = pluginDir ? `${pluginDir}/drawio` : "drawio";
 
   // single-flight 用にメモ化した Promise。null はメモ未保持を表す。

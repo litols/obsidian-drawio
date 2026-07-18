@@ -2,7 +2,11 @@ import { test, expect } from "@playwright/test";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import { waitForLayoutReady, getActiveFilePath, enterDrawioEditor } from "../helpers/obsidian-app.ts";
+import {
+  waitForLayoutReady,
+  getActiveFilePath,
+  enterDrawioEditor,
+} from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
 // 今回追加: `.drawio.svg` / `.drawio.png` のコンテキストメニューに

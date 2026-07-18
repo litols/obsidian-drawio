@@ -4,7 +4,11 @@ import { resolve } from "node:path";
 import { launchObsidianForVault } from "../helpers/obsidian-launch.ts";
 import { installPluginIntoVault } from "../helpers/plugin-install.ts";
 import { installMessageCapture, getDrawioFrame } from "../helpers/drawio-frame.ts";
-import { revealFileExplorer, getActiveFilePath, enterDrawioEditor } from "../helpers/obsidian-app.ts";
+import {
+  revealFileExplorer,
+  getActiveFilePath,
+  enterDrawioEditor,
+} from "../helpers/obsidian-app.ts";
 import { vaultRoot } from "../helpers/vault-fs.ts";
 
 // 今回追加: file explorer の「新規ノート」ボタン横に「新規ダイアグラム」ボタンを

@@ -158,9 +158,7 @@ export function createPreviewBridge(
       }
 
       if (raw.event === "preview-error") {
-        transitionToError(
-          typeof raw.reason === "string" ? raw.reason : "preview render failed",
-        );
+        transitionToError(typeof raw.reason === "string" ? raw.reason : "preview render failed");
         return;
       }
     };

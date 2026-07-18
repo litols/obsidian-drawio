@@ -28,15 +28,23 @@ describe("bootstrapPreviewInit", () => {
   }
 
   it("DRAWIO_BASE_URL を設定する", () => {
-    dispose = bootstrapPreviewInit({ selfWindow: window, parentWindow: parentWindow as unknown as Window });
-    expect(typeof (window as unknown as { DRAWIO_BASE_URL?: string }).DRAWIO_BASE_URL).toBe("string");
+    dispose = bootstrapPreviewInit({
+      selfWindow: window,
+      parentWindow: parentWindow as unknown as Window,
+    });
+    expect(typeof (window as unknown as { DRAWIO_BASE_URL?: string }).DRAWIO_BASE_URL).toBe(
+      "string",
+    );
   });
 
   it("render 受信で GraphViewer.createViewerForElement を呼び preview-ready を通知する", () => {
     const createViewerForElement = vi.fn();
     (window as unknown as { GraphViewer?: unknown }).GraphViewer = { createViewerForElement };
 
-    dispose = bootstrapPreviewInit({ selfWindow: window, parentWindow: parentWindow as unknown as Window });
+    dispose = bootstrapPreviewInit({
+      selfWindow: window,
+      parentWindow: parentWindow as unknown as Window,
+    });
     sendRender("<mxfile><diagram>a</diagram></mxfile>");
 
     expect(createViewerForElement).toHaveBeenCalledTimes(1);
@@ -54,7 +62,10 @@ describe("bootstrapPreviewInit", () => {
 
   it("GraphViewer 不在なら preview-error を通知する", () => {
     // GraphViewer をセットしない
-    dispose = bootstrapPreviewInit({ selfWindow: window, parentWindow: parentWindow as unknown as Window });
+    dispose = bootstrapPreviewInit({
+      selfWindow: window,
+      parentWindow: parentWindow as unknown as Window,
+    });
     sendRender("<mxfile/>");
 
     const call = parentWindow.postMessage.mock.calls.find((c) => {
@@ -68,7 +79,10 @@ describe("bootstrapPreviewInit", () => {
     const createViewerForElement = vi.fn();
     (window as unknown as { GraphViewer?: unknown }).GraphViewer = { createViewerForElement };
 
-    dispose = bootstrapPreviewInit({ selfWindow: window, parentWindow: parentWindow as unknown as Window });
+    dispose = bootstrapPreviewInit({
+      selfWindow: window,
+      parentWindow: parentWindow as unknown as Window,
+    });
     sendRender("<mxfile/>", { toolbar: "zoom" });
 
     const host = createViewerForElement.mock.calls[0]![0] as Element;
@@ -80,7 +94,10 @@ describe("bootstrapPreviewInit", () => {
     const createViewerForElement = vi.fn();
     (window as unknown as { GraphViewer?: unknown }).GraphViewer = { createViewerForElement };
 
-    dispose = bootstrapPreviewInit({ selfWindow: window, parentWindow: parentWindow as unknown as Window });
+    dispose = bootstrapPreviewInit({
+      selfWindow: window,
+      parentWindow: parentWindow as unknown as Window,
+    });
     sendRender("<mxfile/>");
     sendRender("<mxfile/>");
     expect(createViewerForElement).toHaveBeenCalledTimes(1);
