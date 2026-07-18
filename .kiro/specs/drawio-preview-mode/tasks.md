@@ -40,7 +40,7 @@
   - _Boundary: drawio-bridge, frame-messenger_
 
 - [ ] 3. プレビュー表示経路
-- [ ] 3.1 (P) preview iframe 内 init スクリプトとビルド
+- [x] 3.1 (P) preview iframe 内 init スクリプトとビルド
   - viewer iframe 内で GraphViewer を起動する init スクリプトを実装する (render 受信 → 描画、ready / error を親へ通知。frame-globals を流用し DRAWIO_BASE_URL を設定)
   - GraphViewer は toolbar (pages / zoom / layers) 付きで生成し、ズーム・パン・ページ切替・初期フィットを組み込み機能で提供する
   - IIFE ビルド設定を追加し、build スクリプトで preview-init.js が dist に出力される

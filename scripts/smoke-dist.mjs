@@ -12,6 +12,7 @@ const root = join(fileURLToPath(import.meta.url), "..", "..");
 const requiredFiles = [
   "dist/main.js",
   "dist/iframe-init.js",
+  "dist/preview-init.js",
   "dist/manifest.json",
   "dist/styles.css",
   "dist/drawio/index.html",
