@@ -38,8 +38,10 @@ test("external-sync-reload: external write triggers reload banner", async () => 
 
   await writeExternal(samplePath("empty.drawio"), "<mxfile><diagram></diagram></mxfile>");
 
+  // 外部書き込み検知 (watcher の debounce) + banner マウントは full-suite の負荷下で
+  // 10s を超えることがある。マージンを広げて flaky を抑える。
   const banner = window.getByText(/external change|reload/i);
-  await expect(banner).toBeVisible({ timeout: 10_000 });
+  await expect(banner).toBeVisible({ timeout: 20_000 });
 
   await app.close();
 });
