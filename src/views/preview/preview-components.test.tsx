@@ -51,4 +51,12 @@ describe("ImagePreview", () => {
     viewport.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     expect(onRequestEdit).toHaveBeenCalledTimes(1);
   });
+
+  it("background prop を viewport の背景に適用する (要件 6.6)", () => {
+    const el = render(
+      <ImagePreview src="app://vault/x.svg" onRequestEdit={vi.fn()} background="rgb(1, 2, 3)" />,
+    );
+    const viewport = el.querySelector<HTMLElement>(".drawio-image-preview-viewport")!;
+    expect(viewport.style.background).toBe("rgb(1, 2, 3)");
+  });
 });

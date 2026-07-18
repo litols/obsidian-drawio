@@ -23,6 +23,8 @@ export type TranslationKey =
   | "settings.defaultOpenMode"
   | "settings.defaultOpenMode.preview"
   | "settings.defaultOpenMode.editor"
+  | "settings.previewBackground"
+  | "settings.previewBackground.desc"
   | "settings.bool.compression"
   | "settings.bool.math"
   | "settings.bool.grid"
@@ -102,6 +104,8 @@ const EN: Record<TranslationKey, string> = {
   "settings.defaultOpenMode": "Default open mode",
   "settings.defaultOpenMode.preview": "Preview",
   "settings.defaultOpenMode.editor": "Editor",
+  "settings.previewBackground": "Preview background",
+  "settings.previewBackground.desc": "Background color behind the preview (default: white).",
   "settings.bool.compression": "Compression",
   "settings.bool.math": "Math typesetting",
   "settings.bool.grid": "Grid",
@@ -185,6 +189,8 @@ const JA: Record<TranslationKey, string> = {
   "settings.defaultOpenMode": "既定の表示モード",
   "settings.defaultOpenMode.preview": "プレビュー",
   "settings.defaultOpenMode.editor": "エディタ",
+  "settings.previewBackground": "プレビューの背景色",
+  "settings.previewBackground.desc": "プレビュー背後の背景色 (既定: 白)。",
   "settings.bool.compression": "圧縮 (compression)",
   "settings.bool.math": "数式 (math)",
   "settings.bool.grid": "グリッド (grid)",

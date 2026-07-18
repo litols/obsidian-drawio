@@ -84,6 +84,8 @@ export interface DrawioSettings {
    * "preview" は読み取り専用プレビュー、"editor" は従来のフルエディタを直接起動する。
    */
   defaultOpenMode: DrawioOpenMode;
+  /** プレビューの背景色 (CSS color 値)。既定は白。画像・GraphViewer プレビュー双方に適用。 */
+  previewBackground: string;
   externalSync: ExternalSyncSettings;
 }
 
@@ -106,6 +108,7 @@ export const DEFAULT_DRAWIO_SETTINGS: DrawioSettings = {
   openDrawioSvg: true,
   openDrawioPng: true,
   defaultOpenMode: "preview",
+  previewBackground: "#ffffff",
   externalSync: { ...DEFAULT_EXTERNAL_SYNC_SETTINGS },
 };
 
@@ -180,6 +183,12 @@ export function migrateSettings(raw: unknown): DrawioSettings {
   const defaultOpenMode: DrawioOpenMode = VALID_OPEN_MODES.includes(rawOpenMode as DrawioOpenMode)
     ? (rawOpenMode as DrawioOpenMode)
     : DEFAULT_DRAWIO_SETTINGS.defaultOpenMode;
+
+  const rawPreviewBackground = drawioInput.previewBackground;
+  const previewBackground =
+    typeof rawPreviewBackground === "string" && rawPreviewBackground.trim() !== ""
+      ? rawPreviewBackground
+      : DEFAULT_DRAWIO_SETTINGS.previewBackground;
 
   const baselineLibraries = Array.isArray(drawioInput.baselineLibraries)
     ? (drawioInput.baselineLibraries as string[]).filter((v) => typeof v === "string")
@@ -262,6 +271,7 @@ export function migrateSettings(raw: unknown): DrawioSettings {
       DEFAULT_DRAWIO_SETTINGS.openDrawioPng,
     ),
     defaultOpenMode,
+    previewBackground,
     externalSync,
   };
 }

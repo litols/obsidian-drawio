@@ -87,14 +87,23 @@ function renderViewer(win: Window, xml: string, config?: Record<string, unknown>
   const previous = doc.querySelector("[data-drawio-preview-host]");
   if (previous) previous.remove();
 
+  // background は GraphViewer graphConfig ではなく iframe の背景として適用する (要件 6.6)。
+  const { background, ...restConfig } = config ?? {};
+  if (typeof background === "string" && background !== "") {
+    doc.body.style.background = background;
+  }
+
   const host = doc.createElement("div");
   host.setAttribute("data-drawio-preview-host", "");
   host.className = "mxgraph";
   host.style.maxWidth = "100%";
   host.style.width = "100%";
   host.style.height = "100%";
+  if (typeof background === "string" && background !== "") {
+    host.style.background = background;
+  }
 
-  const graphConfig = { ...DEFAULT_GRAPH_CONFIG, ...config, xml };
+  const graphConfig = { ...DEFAULT_GRAPH_CONFIG, ...restConfig, xml };
   host.setAttribute("data-mxgraph", JSON.stringify(graphConfig));
   doc.body.appendChild(host);
 

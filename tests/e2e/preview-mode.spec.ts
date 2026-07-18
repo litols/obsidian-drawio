@@ -45,6 +45,37 @@ async function setDefaultOpenMode(page: Page, mode: "preview" | "editor"): Promi
   }, mode);
 }
 
+/** 実行中プラグインの previewBackground を in-memory で設定する (onload 完了を待つ)。 */
+async function setPreviewBackground(page: Page, color: string): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const p = (
+        globalThis as unknown as {
+          app?: {
+            plugins?: {
+              plugins?: Record<string, { assetCache?: unknown; settings?: { drawio?: unknown } }>;
+            };
+          };
+        }
+      ).app?.plugins?.plugins?.["obsidian-drawio"];
+      return !!p?.assetCache && !!p?.settings?.drawio;
+    },
+    { timeout: 30_000 },
+  );
+  await page.evaluate((c) => {
+    const p = (
+      globalThis as unknown as {
+        app: {
+          plugins: {
+            plugins: Record<string, { settings: { drawio?: { previewBackground?: string } } }>;
+          };
+        };
+      }
+    ).app.plugins.plugins["obsidian-drawio"];
+    if (p?.settings?.drawio) p.settings.drawio.previewBackground = c;
+  }, color);
+}
+
 /** 親ウィンドウが捕捉した preview iframe → 親メッセージから指定 event を待つ。 */
 async function waitForPreviewEvent(page: Page, event: string, timeoutMs = 30_000): Promise<void> {
   await expect
@@ -118,6 +149,22 @@ test("preview-mode: defaultOpenMode=editor makes a newly opened file open in the
   // エディタ iframe が直接起動し、プレビュー iframe は生成されない
   await window.locator("iframe[data-drawio]").waitFor({ state: "attached", timeout: 30_000 });
   expect(await window.locator("iframe[data-drawio-preview]").count()).toBe(0);
+
+  await app.close();
+});
+
+test("preview-mode: previewBackground setting is applied to the image preview", async () => {
+  installPluginIntoVault();
+  const { app, window } = await launchObsidianForVault(vaultRoot());
+  await installMessageCapture(window);
+
+  // 背景色を変更してから画像プレビューを開く (要件 6.6)
+  await setPreviewBackground(window, "rgb(200, 100, 50)");
+  await openFile(window, "samples/sample.drawio.svg");
+
+  const viewport = window.locator(".drawio-image-preview-viewport");
+  await expect(viewport).toBeVisible({ timeout: 15_000 });
+  await expect(viewport).toHaveCSS("background-color", "rgb(200, 100, 50)");
 
   await app.close();
 });

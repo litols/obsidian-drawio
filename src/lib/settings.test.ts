@@ -214,6 +214,38 @@ describe("migrateSettings", () => {
     });
   });
 
+  describe("previewBackground の検証", () => {
+    it("有効な color 文字列がそのまま採用される", () => {
+      expect(migrateSettings({ drawio: { previewBackground: "#123456" } }).previewBackground).toBe(
+        "#123456",
+      );
+      expect(
+        migrateSettings({ drawio: { previewBackground: "rebeccapurple" } }).previewBackground,
+      ).toBe("rebeccapurple");
+    });
+
+    it("欠損 → 既定 (#ffffff) を返す", () => {
+      const result = migrateSettings({ drawio: {} });
+      expect(result.previewBackground).toBe("#ffffff");
+      expect(result.previewBackground).toBe(DEFAULT_DRAWIO_SETTINGS.previewBackground);
+    });
+
+    it("空文字・空白のみ → 既定を返す", () => {
+      expect(migrateSettings({ drawio: { previewBackground: "" } }).previewBackground).toBe(
+        "#ffffff",
+      );
+      expect(migrateSettings({ drawio: { previewBackground: "   " } }).previewBackground).toBe(
+        "#ffffff",
+      );
+    });
+
+    it("非文字列 → 既定を返す", () => {
+      expect(migrateSettings({ drawio: { previewBackground: 123 } }).previewBackground).toBe(
+        "#ffffff",
+      );
+    });
+  });
+
   describe("defaultLibraries / customLibraries の検証", () => {
     it("string 配列がそのまま採用される", () => {
       const result = migrateSettings({ drawio: { defaultLibraries: ["general", "aws4"] } });

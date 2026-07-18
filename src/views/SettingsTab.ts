@@ -141,6 +141,17 @@ export class DrawioSettingTab extends PluginSettingTab {
         });
     });
 
+    // プレビュー背景色 (drawio-preview-mode spec が追加した previewBackground)
+    new Setting(containerEl)
+      .setName(t("settings.previewBackground"))
+      .setDesc(t("settings.previewBackground.desc"))
+      .addColorPicker((picker) => {
+        picker.setValue(settings.previewBackground).onChange(async (value) => {
+          settings.previewBackground = value;
+          await this.persist();
+        });
+      });
+
     // 外部変更の同期 (見出しと説明のみ。操作コントロールは本 spec のスコープ外)
     new Setting(containerEl).setName(t("settings.externalSync.heading")).setHeading();
     new Setting(containerEl).setDesc(t("settings.externalSync.body"));

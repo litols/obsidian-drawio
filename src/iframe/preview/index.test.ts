@@ -90,6 +90,23 @@ describe("bootstrapPreviewInit", () => {
     expect(cfg["toolbar"]).toBe("zoom");
   });
 
+  it("config.background は iframe body / host に適用され graphConfig には含めない (要件 6.6)", () => {
+    const createViewerForElement = vi.fn();
+    (window as unknown as { GraphViewer?: unknown }).GraphViewer = { createViewerForElement };
+
+    dispose = bootstrapPreviewInit({
+      selfWindow: window,
+      parentWindow: parentWindow as unknown as Window,
+    });
+    sendRender("<mxfile/>", { background: "rgb(10, 20, 30)" });
+
+    expect(window.document.body.style.background).toBe("rgb(10, 20, 30)");
+    const host = createViewerForElement.mock.calls[0]![0] as HTMLElement;
+    expect(host.style.background).toBe("rgb(10, 20, 30)");
+    const cfg = JSON.parse(host.getAttribute("data-mxgraph")!) as Record<string, unknown>;
+    expect(cfg["background"]).toBeUndefined();
+  });
+
   it("2 回目の render は無視される (single render)", () => {
     const createViewerForElement = vi.fn();
     (window as unknown as { GraphViewer?: unknown }).GraphViewer = { createViewerForElement };

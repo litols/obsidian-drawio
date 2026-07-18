@@ -389,6 +389,7 @@ export class DrawioView extends FileView {
     const container = this.contentEl;
     this.ensureFullContentArea();
     const strategy = selectPreviewStrategy(result.format, result.xml);
+    const background = this.plugin.settings.drawio?.previewBackground ?? "#ffffff";
 
     if (strategy === "image") {
       // svg/png の内包画像を vault リソース URL 直接指定で表示 (read 不要)。
@@ -399,12 +400,14 @@ export class DrawioView extends FileView {
           src,
           onRequestEdit: () => void this.enterEditor(),
           onError: () => this.showPreviewError(),
+          background,
         }),
       );
       return;
     }
 
     // XML / 複数ページは GraphViewer で描画。失敗時はエラーパネルへフォールバック。
+    // 背景色は render config で渡し、preview-init が iframe body / host に適用する。
     this.previewBridge = createPreviewBridge(
       this.plugin.assetCache,
       this.app.vault.adapter,
@@ -412,6 +415,7 @@ export class DrawioView extends FileView {
     );
     this.previewBridge.mount(container, {
       xml: result.xml,
+      config: { background },
       callbacks: {
         onError: (reason) => this.showPreviewError(reason),
       },
