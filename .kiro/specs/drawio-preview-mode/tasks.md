@@ -130,8 +130,16 @@
   - ユニットテストでチャンク順序・Blob 化と文字列破棄・テール到着前アクセスの劣化 (warn+passthrough) が検証されている
   - _Requirements: 5.5, 5.6_
   - _Boundary: drawio-bridge, iframe-init_
-- [ ] 7.2 メモリスパイクの E2E 検証
-  - Electron getAppMetrics の RSS 計装で preview→editor 遷移のメモリスパイクが +200MB 未満であることを検証する (performance.memory は使用しない)
+- [ ] 7.1b テール群の lazy Blob 化 (7.2 実測に基づく改定)
+  - テール群はチャンク受信時は文字列で保持し、アクセス時に Blob 化して直後にソース文字列を破棄する (コア群は即時 Blob 化のまま)
+  - 未使用テールの Blob 先行実体化による恒常 RSS 増加 (+220MB) を解消する
+  - ユニットテストで「テールはアクセス前は Blob 未生成」「アクセス後は文字列破棄済み」が検証されている
+  - _Requirements: 5.5, 5.6_
+  - _Depends: 7.1_
+  - _Boundary: iframe-init_
+- [ ] 7.2 メモリスパイクの E2E 検証 (合否基準改定)
+  - Electron getAppMetrics の RSS 計装で preview→editor 遷移の transient spike (peak − 遷移後 stable) が 200MB 未満であることを検証する (performance.memory は使用しない)
+  - 旧実装比で stable・絶対ピークが悪化していないことを 1 回の比較計測で確認し、数値を記録する
   - 既存エディタ E2E (起動・編集・保存・回帰) が段階配信後も green であることを確認する
   - _Requirements: 5.5, 3.5_
-  - _Depends: 7.1_
+  - _Depends: 7.1b_
