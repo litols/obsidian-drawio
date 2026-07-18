@@ -73,3 +73,20 @@
 .drawio-embed-preview:hover .drawio-embed-hint {
   opacity: 1;
 }
+
+/* ── drawio settings tab ────────────────────────────────────────────────── */
+
+.drawio-settings-intro {
+  margin-bottom: var(--size-4-4);
+}
+
+.drawio-settings-error {
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  margin: var(--size-2-2) 0 var(--size-4-2);
+}
+
+/* エラー文言が空のときは行を占有しない */
+.drawio-settings-error:empty {
+  display: none;
+}
