@@ -18,6 +18,9 @@ export type TranslationKey =
   | "settings.saveFormat"
   | "settings.saveFormat.keep"
   | "settings.language"
+  | "settings.defaultOpenMode"
+  | "settings.defaultOpenMode.preview"
+  | "settings.defaultOpenMode.editor"
   | "settings.bool.compression"
   | "settings.bool.math"
   | "settings.bool.grid"
@@ -86,6 +89,9 @@ const EN: Record<TranslationKey, string> = {
   "settings.saveFormat": "Save format",
   "settings.saveFormat.keep": "keep (preserve original format)",
   "settings.language": "Language",
+  "settings.defaultOpenMode": "Default open mode",
+  "settings.defaultOpenMode.preview": "Preview",
+  "settings.defaultOpenMode.editor": "Editor",
   "settings.bool.compression": "Compression",
   "settings.bool.math": "Math typesetting",
   "settings.bool.grid": "Grid",
@@ -158,6 +164,9 @@ const JA: Record<TranslationKey, string> = {
   "settings.saveFormat": "保存形式",
   "settings.saveFormat.keep": "keep (元の形式を維持)",
   "settings.language": "言語",
+  "settings.defaultOpenMode": "既定の表示モード",
+  "settings.defaultOpenMode.preview": "プレビュー",
+  "settings.defaultOpenMode.editor": "エディタ",
   "settings.bool.compression": "圧縮 (compression)",
   "settings.bool.math": "数式 (math)",
   "settings.bool.grid": "グリッド (grid)",
