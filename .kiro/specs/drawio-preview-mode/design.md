@@ -430,6 +430,18 @@ export function panBy(state: ZoomPanState, dx: number, dy: number): ZoomPanState
 - 検証 (7.2 合否基準の改定): エディタ本体の恒常フットプリント (~+800MB: app.min.js パース + EditorUi 構築) は本対策の対象外であり、絶対値 "+200MB" は不達なので用いない。E2E アサーションは **transient spike (peak − 遷移後 stable) < 200MB** とし、あわせて **旧実装比で stable・絶対ピークが悪化していないこと**を 1 回の比較計測で確認し数値を記録する。`getAppMetrics()` RSS を使用 (`performance.memory` は iframe realm を含まないため禁止)
 - 将来課題 (別 spec): フルオンデマンド配信 (research.md の Architecture Pattern Evaluation 参照)
 
+## プレビューのジェスチャ操作 (追補: 2026-07-19 ユーザーフィードバック)
+
+**問題**: GraphViewer プレビュー (XML 経路) は toolbar ボタンによるズームのみで、ピンチ / ホイールズーム / ドラッグパン / 2 本指スクロールパンが効かない (要件 2.7, 2.8 のギャップ)。画像経路 (ImagePreview) は実装済み。
+
+**対策**: preview-init が GraphViewer 生成後に `viewer.graph` (mxGraph API) に対してジェスチャを配線する:
+- **ピンチ / 修飾キー+ホイール**: `mxEvent.addMouseWheelListener` 相当で ctrlKey 付き wheel (トラックパッドのピンチは ctrlKey=true の wheel として届く) と修飾キー+ホイールを捕捉し、カーソル位置を基準に `graph.zoomIn/zoomOut` (drawio 本体の cursor-anchored zoom と同様に `graph.view` の translate を補正)
+- **ドラッグパン**: `graph.setPanning(true)` + `panningHandler.useLeftButtonForPanning = true` (読み取り専用なのでセル選択・移動と競合しない)
+- **2 本指スクロール**: 修飾キーなし wheel を `graph.view` の translate 移動 (パン) にマップ。preventDefault でページスクロールを抑止
+- ズーム倍率クランプは画像経路と揃える ([0.1, 10] 目安)。toolbar (pages / zoom) は従来どおり併存
+- 実装は preview-init 内で完結し、preview-bridge のプロトコル・親側 UI は変更しない。正確な API 名は vendor GraphViewer.js / mxGraph ソースで実装時に確認
+- 画像経路は既存実装 (zoom-pan 純関数 + wheel/pointer ハンドラ) を維持し、ジェスチャ挙動 (ピンチ方向・パン方向・倍率感度) を両経路で一致させる
+
 ## Error Handling
 
 ### Error Strategy
