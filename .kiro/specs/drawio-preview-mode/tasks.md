@@ -145,7 +145,7 @@
   - _Depends: 7.1b_
 
 - [ ] 8. プレビューのジェスチャ操作 (追補: 2026-07-19 ユーザーフィードバック)
-- [ ] 8.1 GraphViewer プレビューのジェスチャ配線
+- [x] 8.1 GraphViewer プレビューのジェスチャ配線
   - preview-init が viewer.graph に対しピンチ (ctrlKey wheel) / 修飾キー+ホイールのカーソル基準ズーム、ドラッグパン (left-button panning)、修飾キーなし wheel の 2 本指スクロールパンを配線する
   - ズーム倍率クランプと操作感度を画像プレビュー経路と一致させる。toolbar (pages / zoom) は併存
   - GraphViewer プレビュー上でピンチズーム・ドラッグパン・スクロールパンが動作する (手動確認 + 可能な範囲の E2E/unit)

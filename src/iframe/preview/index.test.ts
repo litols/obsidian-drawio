@@ -1,6 +1,129 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { bootstrapPreviewInit } from "./index";
+import {
+  bootstrapPreviewInit,
+  clampPreviewScale,
+  zoomGraphAtCursor,
+  panGraphBy,
+  wireGraphGestures,
+} from "./index";
+
+// ─── ジェスチャ (要件 2.7, 2.8) ───────────────────────────────────────────────
+
+interface MockGraph {
+  view: {
+    scale: number;
+    translate: { x: number; y: number };
+    setTranslate: ReturnType<typeof vi.fn>;
+    scaleAndTranslate: ReturnType<typeof vi.fn>;
+  };
+  container: HTMLElement;
+  panningHandler: {
+    useLeftButtonForPanning: boolean;
+    ignoreCell: boolean;
+    isForcePanningEvent: (me: unknown) => boolean;
+  };
+  setPanning: ReturnType<typeof vi.fn>;
+}
+
+function makeGraph(scale = 1, tx = 0, ty = 0): MockGraph {
+  const container = document.createElement("div");
+  container.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0 }) as DOMRect;
+  return {
+    view: {
+      scale,
+      translate: { x: tx, y: ty },
+      setTranslate: vi.fn(),
+      scaleAndTranslate: vi.fn(),
+    },
+    container,
+    panningHandler: {
+      useLeftButtonForPanning: false,
+      ignoreCell: false,
+      isForcePanningEvent: () => false,
+    },
+    setPanning: vi.fn(),
+  };
+}
+
+describe("clampPreviewScale", () => {
+  it("画像経路 zoom-pan と同じ [0.1, 10] にクランプ", () => {
+    expect(clampPreviewScale(1)).toBe(1);
+    expect(clampPreviewScale(0.01)).toBe(0.1);
+    expect(clampPreviewScale(1000)).toBe(10);
+    expect(clampPreviewScale(Number.NaN)).toBe(0.1);
+  });
+});
+
+describe("zoomGraphAtCursor", () => {
+  it("カーソル位置を不変点にズームする (要件 2.7)", () => {
+    const g = makeGraph(1, 0, 0);
+    zoomGraphAtCursor(g as never, 1.1, 100, 50);
+    expect(g.view.scaleAndTranslate).toHaveBeenCalledTimes(1);
+    const [s2, tx, ty] = g.view.scaleAndTranslate.mock.calls[0]!;
+    expect(s2).toBeCloseTo(1.1);
+    // カーソル (100,50) の graph 座標がズーム後も同じ画面位置に写る
+    // screen = (graphCoord + translate) * scale。graphCoord は元 scale=1 で 100/50。
+    expect((100 + tx) * s2).toBeCloseTo(100);
+    expect((50 + ty) * s2).toBeCloseTo(50);
+  });
+
+  it("クランプ上限で頭打ち", () => {
+    const g = makeGraph(9, 0, 0);
+    zoomGraphAtCursor(g as never, 4, 100, 50);
+    expect(g.view.scaleAndTranslate.mock.calls[0]![0]).toBe(10);
+  });
+
+  it("スケール変化なしなら何もしない", () => {
+    const g = makeGraph(10, 0, 0);
+    zoomGraphAtCursor(g as never, 2, 100, 50); // 既に上限
+    expect(g.view.scaleAndTranslate).not.toHaveBeenCalled();
+  });
+});
+
+describe("panGraphBy", () => {
+  it("画面 px 移動量を scale で割って translate に加算 (方向は画像経路と一致)", () => {
+    const g = makeGraph(2, 10, 20);
+    panGraphBy(g as never, -30, -40);
+    expect(g.view.setTranslate).toHaveBeenCalledWith(10 + -30 / 2, 20 + -40 / 2);
+  });
+});
+
+describe("wireGraphGestures", () => {
+  it("ドラッグパンを有効化する", () => {
+    const g = makeGraph();
+    wireGraphGestures(g as never);
+    expect(g.setPanning).toHaveBeenCalledWith(true);
+    expect(g.panningHandler.useLeftButtonForPanning).toBe(true);
+    expect(g.panningHandler.ignoreCell).toBe(true);
+    expect(g.panningHandler.isForcePanningEvent(null)).toBe(true);
+  });
+
+  it("ctrlKey wheel はカーソル基準ズーム、素の wheel はスクロールパン", () => {
+    const g = makeGraph(1, 0, 0);
+    wireGraphGestures(g as never);
+
+    // ピンチ/修飾キー: ズーム (deltaY<0 → 拡大)
+    g.container.dispatchEvent(
+      new WheelEvent("wheel", {
+        deltaY: -100,
+        ctrlKey: true,
+        clientX: 100,
+        clientY: 50,
+        cancelable: true,
+      }),
+    );
+    expect(g.view.scaleAndTranslate).toHaveBeenCalledTimes(1);
+    expect(g.view.scaleAndTranslate.mock.calls[0]![0]).toBeGreaterThan(1);
+
+    // 素の wheel: パン (translate 変化、scale 不変)
+    g.container.dispatchEvent(
+      new WheelEvent("wheel", { deltaX: 20, deltaY: 30, cancelable: true }),
+    );
+    expect(g.view.setTranslate).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("bootstrapPreviewInit", () => {
   let parentWindow: { postMessage: ReturnType<typeof vi.fn> };

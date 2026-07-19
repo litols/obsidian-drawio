@@ -74,6 +74,100 @@ const DEFAULT_GRAPH_CONFIG: Record<string, unknown> = {
   "auto-fit": true,
 };
 
+// ─── Gestures (要件 2.7, 2.8) ───────────────────────────────────────────────────
+// 画像プレビュー経路 (zoom-pan.ts) と同一のクランプ・感度に揃える。preview-init は
+// src/lib を import できないため定数を複製する (値は zoom-pan.ts と一致させること)。
+const PREVIEW_MIN_SCALE = 0.1;
+const PREVIEW_MAX_SCALE = 10;
+const WHEEL_ZOOM_FACTOR = 1.1;
+
+interface MxGraphView {
+  scale: number;
+  translate: { x: number; y: number };
+  setTranslate(dx: number, dy: number): void;
+  scaleAndTranslate(scale: number, dx: number, dy: number): void;
+}
+
+interface MxGraph {
+  view: MxGraphView;
+  container: HTMLElement;
+  panningHandler: {
+    useLeftButtonForPanning: boolean;
+    ignoreCell: boolean;
+    isForcePanningEvent: (me: unknown) => boolean;
+  };
+  setPanning(enabled: boolean): void;
+}
+
+interface GraphViewerInstance {
+  graph?: MxGraph;
+}
+
+export function clampPreviewScale(scale: number): number {
+  if (Number.isNaN(scale)) return PREVIEW_MIN_SCALE;
+  return Math.min(PREVIEW_MAX_SCALE, Math.max(PREVIEW_MIN_SCALE, scale));
+}
+
+/**
+ * カーソル位置を不変点として graph をズームする (要件 2.7)。
+ * mxGraph 座標系: screen = (graph + translate) * scale。
+ */
+export function zoomGraphAtCursor(
+  graph: MxGraph,
+  factor: number,
+  clientX: number,
+  clientY: number,
+): void {
+  const view = graph.view;
+  const s = view.scale;
+  const s2 = clampPreviewScale(s * factor);
+  if (s2 === s) return;
+  const rect = graph.container.getBoundingClientRect();
+  const px = clientX - rect.left + graph.container.scrollLeft;
+  const py = clientY - rect.top + graph.container.scrollTop;
+  const t = view.translate;
+  const gx = px / s - t.x;
+  const gy = py / s - t.y;
+  // 新スケール後もカーソル直下の graph 座標が同じ画面位置に来るよう translate を補正。
+  view.scaleAndTranslate(s2, px / s2 - gx, py / s2 - gy);
+}
+
+/** 画面 px 単位の移動量で graph をパンする (要件 2.8)。 */
+export function panGraphBy(graph: MxGraph, dxScreen: number, dyScreen: number): void {
+  const view = graph.view;
+  const t = view.translate;
+  view.setTranslate(t.x + dxScreen / view.scale, t.y + dyScreen / view.scale);
+}
+
+/**
+ * GraphViewer プレビューに画像経路と同等のジェスチャを配線する。
+ * - ドラッグパン (left button。読み取り専用なのでセル選択と競合しない)
+ * - ctrlKey/metaKey wheel (トラックパッドのピンチ含む) → カーソル基準ズーム
+ * - 修飾キーなし wheel → 2 本指スクロールパン (preventDefault でページスクロール抑止)
+ * toolbar (pages / zoom) は従来どおり併存する。
+ */
+export function wireGraphGestures(graph: MxGraph): void {
+  graph.setPanning(true);
+  const ph = graph.panningHandler;
+  ph.useLeftButtonForPanning = true;
+  ph.ignoreCell = true;
+  ph.isForcePanningEvent = () => true;
+
+  graph.container.addEventListener(
+    "wheel",
+    (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        const factor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+        zoomGraphAtCursor(graph, factor, e.clientX, e.clientY);
+      } else {
+        panGraphBy(graph, -e.deltaX, -e.deltaY);
+      }
+    },
+    { passive: false },
+  );
+}
+
 // ─── Rendering ─────────────────────────────────────────────────────────────────
 
 function renderViewer(win: Window, xml: string, config?: Record<string, unknown>): void {
@@ -107,7 +201,16 @@ function renderViewer(win: Window, xml: string, config?: Record<string, unknown>
   host.setAttribute("data-mxgraph", JSON.stringify(graphConfig));
   doc.body.appendChild(host);
 
-  graphViewer.createViewerForElement(host);
+  // viewer 生成後に graph へジェスチャを配線する (要件 2.7, 2.8)。
+  graphViewer.createViewerForElement(host, (viewer: unknown) => {
+    const graph = (viewer as GraphViewerInstance | null)?.graph;
+    if (!graph) return;
+    try {
+      wireGraphGestures(graph);
+    } catch (err) {
+      console.warn("[drawio-preview] gesture wiring failed:", err);
+    }
+  });
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────

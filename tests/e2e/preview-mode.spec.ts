@@ -203,5 +203,34 @@ test("preview-mode: multi-page .drawio preview provides pages toolbar and zoom c
   expect(fill.iframeW).toBeGreaterThan(200);
   expect(hostW).toBeGreaterThanOrEqual(Math.round(fill.iframeW * 0.9));
 
+  // ジェスチャ配線 (要件 2.7): ctrl+wheel でズームすると graph の transform が変化する。
+  // (ジェスチャの忠実なシミュレーションではなく transform 変化の確認に留める)
+  const readTransforms = () =>
+    frame
+      .locator("svg")
+      .first()
+      .evaluate((svg) =>
+        Array.from(svg.querySelectorAll("g[transform]"))
+          .map((g) => g.getAttribute("transform"))
+          .join("|"),
+      );
+  const beforeT = await readTransforms();
+  await frame
+    .locator("svg")
+    .first()
+    .evaluate((svg) => {
+      svg.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: -240,
+          ctrlKey: true,
+          clientX: 200,
+          clientY: 200,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+  await expect.poll(readTransforms, { timeout: 5_000 }).not.toBe(beforeT);
+
   await app.close();
 });
