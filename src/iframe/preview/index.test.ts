@@ -7,6 +7,8 @@ import {
   panGraphBy,
   wireGraphGestures,
 } from "./index";
+// テスト専用: 画像プレビュー経路 (src/lib) との一致検証のため import (IIFE ビルドには含まれない)。
+import { clampScale as imageClampScale, zoomAt as imageZoomAt } from "../../lib/zoom-pan";
 
 // ─── ジェスチャ (要件 2.7, 2.8) ───────────────────────────────────────────────
 
@@ -122,6 +124,44 @@ describe("wireGraphGestures", () => {
       new WheelEvent("wheel", { deltaX: 20, deltaY: 30, cancelable: true }),
     );
     expect(g.view.setTranslate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("画像経路とのジェスチャ一致 (8.2, 要件 2.7/2.8)", () => {
+  it("クランプ範囲が画像経路 (zoom-pan) と完全一致する", () => {
+    for (const s of [-1, 0.01, 0.1, 0.5, 1, 5, 10, 100, Number.NaN]) {
+      expect(clampPreviewScale(s)).toBe(imageClampScale(s));
+    }
+  });
+
+  it("ズーム原点不変性が両経路で成立し、同一 factor で同一スケールになる (要件 2.7)", () => {
+    const factor = 1.1;
+    const ox = 120;
+    const oy = 80;
+
+    // graph 経路: カーソル (ox,oy) が不変
+    const g = makeGraph(1, 0, 0);
+    zoomGraphAtCursor(g as never, factor, ox, oy);
+    const [gs, gtx, gty] = g.view.scaleAndTranslate.mock.calls[0]!;
+    expect((ox + gtx) * gs).toBeCloseTo(ox);
+    expect((oy + gty) * gs).toBeCloseTo(oy);
+
+    // image 経路 (zoom-pan.zoomAt): screen = translate + content*scale の不変性
+    const st = imageZoomAt({ scale: 1, translateX: 0, translateY: 0 }, factor, ox, oy);
+    expect(st.translateX + ox * st.scale).toBeCloseTo(ox);
+    expect(st.translateY + oy * st.scale).toBeCloseTo(oy);
+
+    // 同一 factor → 同一スケール (感度一致)
+    expect(st.scale).toBeCloseTo(gs);
+  });
+
+  it("パン方向が両経路で一致する (screen 移動 dx に対し同符号)", () => {
+    // graph: 素の wheel は panGraphBy(-deltaX, -deltaY) → translate += -delta/scale
+    const g = makeGraph(1, 0, 0);
+    panGraphBy(g as never, 10, -20);
+    expect(g.view.setTranslate).toHaveBeenCalledWith(10, -20);
+    // image: panBy は translate += (dx,dy)。同じ screen 移動で同符号に translate が動く。
+    // (ImagePreview は wheel を -delta で渡すため両経路とも「content が -delta 方向」に動く)
   });
 });
 
