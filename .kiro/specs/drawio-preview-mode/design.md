@@ -436,7 +436,7 @@ export function panBy(state: ZoomPanState, dx: number, dy: number): ZoomPanState
 
 **対策**: preview-init が GraphViewer 生成後に `viewer.graph` (mxGraph API) に対してジェスチャを配線する:
 - **ピンチ / 修飾キー+ホイール**: `mxEvent.addMouseWheelListener` 相当で ctrlKey 付き wheel (トラックパッドのピンチは ctrlKey=true の wheel として届く) と修飾キー+ホイールを捕捉し、カーソル位置を基準に `graph.zoomIn/zoomOut` (drawio 本体の cursor-anchored zoom と同様に `graph.view` の translate を補正)
-- **ドラッグパン**: `graph.setPanning(true)` + `panningHandler.useLeftButtonForPanning = true` (読み取り専用なのでセル選択・移動と競合しない)
+- **ドラッグパン**: mxGraph の `panningHandler` は使わない (キャンバス DOM ごとオフセットするため枠ごと動いて見える)。pointer ドラッグを 2 本指スクロールと同じ `graph.view.setTranslate` の差分移動にマップし、スクロールパンと視覚挙動を完全一致させる (2026-07-21 ユーザーフィードバックによる改定)
 - **2 本指スクロール**: 修飾キーなし wheel を `graph.view` の translate 移動 (パン) にマップ。preventDefault でページスクロールを抑止
 - ズーム倍率クランプは画像経路と揃える ([0.1, 10] 目安)。toolbar (pages / zoom) は従来どおり併存
 - 実装は preview-init 内で完結し、preview-bridge のプロトコル・親側 UI は変更しない。正確な API 名は vendor GraphViewer.js / mxGraph ソースで実装時に確認
