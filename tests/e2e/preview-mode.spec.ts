@@ -232,5 +232,39 @@ test("preview-mode: multi-page .drawio preview provides pages toolbar and zoom c
     });
   await expect.poll(readTransforms, { timeout: 5_000 }).not.toBe(beforeT);
 
+  // pages toolbar のボタン**クリック**でページ表示が 1/2 → 2/2 に切り替わる (要件 2.4)。
+  // (存在確認だけでは、ドラッグ配線がボタン click を潰す回帰を検出できなかったため実クリックで検証)
+  await expect(frame.getByText(/1\s*\/\s*2/).first()).toBeVisible({ timeout: 5_000 });
+  await frame.locator('[title="Next Page"]').first().click();
+  await expect(frame.getByText(/2\s*\/\s*2/).first()).toBeVisible({ timeout: 5_000 });
+
+  // zoom ボタンの**クリック**でも graph の transform が変化する。
+  const beforeZoom = await readTransforms();
+  await frame.locator('[title="Zoom In"]').first().click();
+  await expect.poll(readTransforms, { timeout: 5_000 }).not.toBe(beforeZoom);
+
+  // ドラッグパン (要件 2.8): SVG 上の pointer ドラッグで transform が変化する
+  // (toolbar ボタンと共存して動くことの確認)。
+  const beforeDrag = await readTransforms();
+  await frame
+    .locator("svg")
+    .first()
+    .evaluate((svg) => {
+      const mk = (type: string, x: number, y: number) =>
+        new PointerEvent(type, {
+          pointerId: 1,
+          button: 0,
+          buttons: 1,
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+          cancelable: true,
+        });
+      svg.dispatchEvent(mk("pointerdown", 300, 300));
+      svg.dispatchEvent(mk("pointermove", 380, 260));
+      svg.dispatchEvent(mk("pointerup", 380, 260));
+    });
+  await expect.poll(readTransforms, { timeout: 5_000 }).not.toBe(beforeDrag);
+
   await app.close();
 });

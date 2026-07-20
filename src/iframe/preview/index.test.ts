@@ -84,20 +84,41 @@ describe("panGraphBy", () => {
 });
 
 describe("wireGraphGestures", () => {
-  it("左ドラッグは view.setTranslate 差分移動でパンする (panningHandler は使わない = 枠ごと動かない)", () => {
+  it("SVG キャンバス上の左ドラッグは view.setTranslate 差分移動でパンする (枠ごと動かない)", () => {
     const g = makeGraph(2, 0, 0);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    g.container.appendChild(svg);
     wireGraphGestures(g as never);
-    const c = g.container;
 
-    c.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 100, clientY: 100 }));
-    expect(c.style.cursor).toBe("grabbing");
+    svg.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0, clientX: 100, clientY: 100, bubbles: true }),
+    );
+    expect(g.container.style.cursor).toBe("grabbing");
 
-    c.dispatchEvent(new MouseEvent("pointermove", { clientX: 130, clientY: 90 }));
+    g.container.dispatchEvent(new MouseEvent("pointermove", { clientX: 130, clientY: 90 }));
     // dx=30, dy=-10, scale=2 → setTranslate(0 + 30/2, 0 + -10/2) = (15, -5)
     expect(g.view.setTranslate).toHaveBeenCalledWith(15, -5);
 
-    c.dispatchEvent(new MouseEvent("pointerup", {}));
-    expect(c.style.cursor).toBe("grab");
+    g.container.dispatchEvent(new MouseEvent("pointerup", {}));
+    expect(g.container.style.cursor).toBe("grab");
+  });
+
+  it("toolbar 相当 (SVG 外) の要素上の pointerdown ではドラッグを開始しない (ボタン click を潰さない)", () => {
+    const g = makeGraph();
+    const toolbar = document.createElement("div"); // SVG の外
+    g.container.appendChild(toolbar);
+    wireGraphGestures(g as never);
+    const capture = g.container.setPointerCapture as unknown as ReturnType<typeof vi.fn>;
+
+    toolbar.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0, clientX: 10, clientY: 10, bubbles: true }),
+    );
+    expect(g.container.style.cursor).not.toBe("grabbing");
+    expect(capture).not.toHaveBeenCalled();
+
+    // ドラッグ未開始なので後続 pointermove でも setTranslate されない
+    g.container.dispatchEvent(new MouseEvent("pointermove", { clientX: 50, clientY: 50 }));
+    expect(g.view.setTranslate).not.toHaveBeenCalled();
   });
 
   it("ドラッグ中でない pointermove は無視される", () => {

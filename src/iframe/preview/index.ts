@@ -167,6 +167,11 @@ export function wireGraphGestures(graph: MxGraph): void {
 
   container.addEventListener("pointerdown", (e: PointerEvent) => {
     if (e.button !== 0) return; // 左ボタンのみ
+    // toolbar (pages/zoom) は container 内 (SVG の兄弟) に配置されるため、SVG キャンバス
+    // 内から発生した pointerdown のみドラッグ開始する。これをしないと toolbar ボタン上の
+    // pointerdown がドラッグ開始 + setPointerCapture で click を潰す (回帰対策)。
+    const target = e.target as Element | null;
+    if (!target || typeof target.closest !== "function" || !target.closest("svg")) return;
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
