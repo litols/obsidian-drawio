@@ -91,12 +91,6 @@ interface MxGraphView {
 interface MxGraph {
   view: MxGraphView;
   container: HTMLElement;
-  panningHandler: {
-    useLeftButtonForPanning: boolean;
-    ignoreCell: boolean;
-    isForcePanningEvent: (me: unknown) => boolean;
-  };
-  setPanning(enabled: boolean): void;
 }
 
 interface GraphViewerInstance {
@@ -141,19 +135,16 @@ export function panGraphBy(graph: MxGraph, dxScreen: number, dyScreen: number): 
 
 /**
  * GraphViewer プレビューに画像経路と同等のジェスチャを配線する。
- * - ドラッグパン (left button。読み取り専用なのでセル選択と競合しない)
  * - ctrlKey/metaKey wheel (トラックパッドのピンチ含む) → カーソル基準ズーム
  * - 修飾キーなし wheel → 2 本指スクロールパン (preventDefault でページスクロール抑止)
+ * - 左ドラッグ → ポインタ差分を **wheel スクロールパンと同一の `view.setTranslate` 移動**で適用する。
+ *   mxGraph の panningHandler (キャンバス DOM ごと CSS オフセット = 枠ごと動く) は使わない。
  * toolbar (pages / zoom) は従来どおり併存する。
  */
 export function wireGraphGestures(graph: MxGraph): void {
-  graph.setPanning(true);
-  const ph = graph.panningHandler;
-  ph.useLeftButtonForPanning = true;
-  ph.ignoreCell = true;
-  ph.isForcePanningEvent = () => true;
+  const container = graph.container;
 
-  graph.container.addEventListener(
+  container.addEventListener(
     "wheel",
     (e: WheelEvent) => {
       e.preventDefault();
@@ -166,6 +157,47 @@ export function wireGraphGestures(graph: MxGraph): void {
     },
     { passive: false },
   );
+
+  // ドラッグパン: ポインタ差分を view.setTranslate で適用 (画像経路 ImagePreview のドラッグと
+  // 同じく content がカーソルに追従。枠ごと動く panningHandler は使わない)。
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  container.style.cursor = "grab";
+
+  container.addEventListener("pointerdown", (e: PointerEvent) => {
+    if (e.button !== 0) return; // 左ボタンのみ
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    try {
+      container.setPointerCapture?.(e.pointerId);
+    } catch {
+      // 無効な pointerId (合成イベント等) では捕捉できないが無視してドラッグは継続。
+    }
+    container.style.cursor = "grabbing";
+    e.preventDefault();
+  });
+
+  container.addEventListener("pointermove", (e: PointerEvent) => {
+    if (!dragging) return;
+    panGraphBy(graph, e.clientX - lastX, e.clientY - lastY);
+    lastX = e.clientX;
+    lastY = e.clientY;
+  });
+
+  const endDrag = (e: PointerEvent): void => {
+    if (!dragging) return;
+    dragging = false;
+    try {
+      container.releasePointerCapture?.(e.pointerId);
+    } catch {
+      // 同上
+    }
+    container.style.cursor = "grab";
+  };
+  container.addEventListener("pointerup", endDrag);
+  container.addEventListener("pointercancel", endDrag);
 }
 
 // ─── Rendering ─────────────────────────────────────────────────────────────────

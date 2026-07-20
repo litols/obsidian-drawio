@@ -20,18 +20,15 @@ interface MockGraph {
     scaleAndTranslate: ReturnType<typeof vi.fn>;
   };
   container: HTMLElement;
-  panningHandler: {
-    useLeftButtonForPanning: boolean;
-    ignoreCell: boolean;
-    isForcePanningEvent: (me: unknown) => boolean;
-  };
-  setPanning: ReturnType<typeof vi.fn>;
 }
 
 function makeGraph(scale = 1, tx = 0, ty = 0): MockGraph {
   const container = document.createElement("div");
   container.getBoundingClientRect = () =>
     ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0 }) as DOMRect;
+  // jsdom は pointer capture を実装しないことがあるので stub する。
+  (container as unknown as { setPointerCapture: () => void }).setPointerCapture = vi.fn();
+  (container as unknown as { releasePointerCapture: () => void }).releasePointerCapture = vi.fn();
   return {
     view: {
       scale,
@@ -40,12 +37,6 @@ function makeGraph(scale = 1, tx = 0, ty = 0): MockGraph {
       scaleAndTranslate: vi.fn(),
     },
     container,
-    panningHandler: {
-      useLeftButtonForPanning: false,
-      ignoreCell: false,
-      isForcePanningEvent: () => false,
-    },
-    setPanning: vi.fn(),
   };
 }
 
@@ -93,13 +84,27 @@ describe("panGraphBy", () => {
 });
 
 describe("wireGraphGestures", () => {
-  it("ドラッグパンを有効化する", () => {
+  it("左ドラッグは view.setTranslate 差分移動でパンする (panningHandler は使わない = 枠ごと動かない)", () => {
+    const g = makeGraph(2, 0, 0);
+    wireGraphGestures(g as never);
+    const c = g.container;
+
+    c.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 100, clientY: 100 }));
+    expect(c.style.cursor).toBe("grabbing");
+
+    c.dispatchEvent(new MouseEvent("pointermove", { clientX: 130, clientY: 90 }));
+    // dx=30, dy=-10, scale=2 → setTranslate(0 + 30/2, 0 + -10/2) = (15, -5)
+    expect(g.view.setTranslate).toHaveBeenCalledWith(15, -5);
+
+    c.dispatchEvent(new MouseEvent("pointerup", {}));
+    expect(c.style.cursor).toBe("grab");
+  });
+
+  it("ドラッグ中でない pointermove は無視される", () => {
     const g = makeGraph();
     wireGraphGestures(g as never);
-    expect(g.setPanning).toHaveBeenCalledWith(true);
-    expect(g.panningHandler.useLeftButtonForPanning).toBe(true);
-    expect(g.panningHandler.ignoreCell).toBe(true);
-    expect(g.panningHandler.isForcePanningEvent(null)).toBe(true);
+    g.container.dispatchEvent(new MouseEvent("pointermove", { clientX: 50, clientY: 50 }));
+    expect(g.view.setTranslate).not.toHaveBeenCalled();
   });
 
   it("ctrlKey wheel はカーソル基準ズーム、素の wheel はスクロールパン", () => {
