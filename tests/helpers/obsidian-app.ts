@@ -67,9 +67,14 @@ export async function openFile(page: Page, vaultRelativePath: string): Promise<v
  */
 export async function enterDrawioEditor(page: Page): Promise<void> {
   await waitForLayoutReady(page);
-  await page.evaluate(() => {
-    window.app.commands.executeCommandById("obsidian-drawio:drawio-enter-editor");
-  });
+  const ok = await page.evaluate(() =>
+    window.app.commands.executeCommandById("obsidian-drawio:drawio-enter-editor"),
+  );
+  if (!ok) {
+    throw new Error("enterDrawioEditor: command not found or not executable");
+  }
+  // fire-and-poll を避け、エディタ iframe が mount されるまで待ってから返る。
+  await page.locator("iframe[data-drawio]").waitFor({ state: "attached", timeout: 30_000 });
 }
 
 export async function isPluginEnabled(page: Page, id: string): Promise<boolean> {
@@ -90,13 +95,25 @@ export async function getActiveFilePath(page: Page): Promise<string | null> {
   return page.evaluate(() => window.app.workspace.getActiveFile?.()?.path ?? null);
 }
 
-/** 設定モーダルを開き、指定プラグインの設定タブへ切り替える。 */
+/** 設定モーダルを開き、指定プラグインの設定タブが active になるまで待つ。 */
 export async function openPluginSettings(page: Page, pluginId: string): Promise<void> {
   await waitForLayoutReady(page);
   await page.evaluate((id) => {
     window.app.setting.open();
     window.app.setting.openTabById(id);
   }, pluginId);
+  // fire-and-poll をやめ、設定モーダルが開き対象タブの内容が描画されるまで待つ。
+  await page.waitForFunction(
+    (id) => {
+      const setting = window.app.setting as unknown as {
+        activeTab?: { id?: string; containerEl?: HTMLElement };
+      };
+      const tab = setting.activeTab;
+      return !!tab && tab.id === id && !!tab.containerEl && tab.containerEl.childElementCount > 0;
+    },
+    pluginId,
+    { timeout: 15_000 },
+  );
 }
 
 /** 設定モーダルを閉じる。 */

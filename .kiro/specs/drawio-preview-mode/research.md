@@ -125,6 +125,7 @@
 - **GraphViewer が期待どおり sandbox iframe 内で動かない** — bootstrap + script 注入という実績ある経路を再利用。失敗時は要件 1.5 のエラー表示 + 「エディタで開く」導線に必ずフォールバック
 - **プレビュー→編集遷移中の保存競合** — 遷移時に pending save を flush してからモード切替 (要件 3.4)。DrawioView が保存 Promise を追跡
 - **メモリ常駐 (~110MB)** — プレビューデフォルト化で発生頻度自体が下がる。将来の idle eviction 余地を DrawioAssetCache の interface に残す (invalidate())
+- **CI E2E flakiness (共有 vault × 並列 worker)** — 当面は `workers: CI?1` + `retries: CI?2` とヘルパの readiness 待ちで安定化。**将来改善**: E2E の launch ごとに vault を isolate 化 (テンポラリ vault へ複製) して並列実行を安全にする (今回スコープ外)
 
 ## References
 - `vendor/drawio/src/main/webapp/js/diagramly/GraphViewer.js` — viewer API の一次ソース

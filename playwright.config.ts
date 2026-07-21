@@ -3,6 +3,10 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   globalSetup: "./tests/global-setup.ts",
   fullyParallel: false,
+  // CI は共有 vault の並列競合を避けるため直列 (workers=1) + リトライで安定化する。
+  // (vault の launch ごと isolate 化は将来改善: research.md 参照)
+  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 2 : 0,
   timeout: 300_000,
   reporter: [
     ["list"],

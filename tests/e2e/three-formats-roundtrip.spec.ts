@@ -18,7 +18,8 @@ test("three-formats-roundtrip: all three formats open and iframe becomes ready",
     await enterDrawioEditor(window);
 
     const handle = getDrawioFrame(window);
-    await handle.waitForReady(30_000);
+    // 他 editor 系 spec と同じ 60s に統一 (cold ロードが重い環境向け)。
+    await handle.waitForReady(60_000);
   }
 
   await app.close();
