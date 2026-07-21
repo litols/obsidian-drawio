@@ -3,11 +3,37 @@ import type { DataAdapter } from "obsidian";
 
 // obsidian はスタブ済 (vitest.config.ts の stub-obsidian プラグイン)
 import {
+  arrayBufferToBase64,
   createDrawioAssetLoader,
   EDITOR_ASSET_EXCLUDES,
   isExcludedEditorAsset,
   type DrawioAssetLoader,
 } from "./drawio-asset-loader";
+
+// 参照実装 (旧: 1 文字ずつ連結)。高速化版と同一出力であることを確認するための基準。
+function refArrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+describe("arrayBufferToBase64 (ブロック化高速版)", () => {
+  const cases: Array<[string, Uint8Array]> = [
+    ["空", new Uint8Array([])],
+    ["1 バイト", new Uint8Array([0])],
+    ["境界値 0/255", new Uint8Array([0, 255, 1, 254, 128, 127])],
+    ["3 の倍数でない長さ", new Uint8Array([1, 2, 3, 4, 5])],
+    [
+      "BASE64_BLOCK(8192) 境界をまたぐ長さ",
+      Uint8Array.from({ length: 8192 * 2 + 5 }, (_, i) => (i * 31 + 7) % 256),
+    ],
+  ];
+  it.each(cases)("%s は参照実装と同一出力", (_name, bytes) => {
+    const buf = bytes.buffer as ArrayBuffer;
+    expect(arrayBufferToBase64(buf)).toBe(refArrayBufferToBase64(buf));
+  });
+});
 
 // ------- ヘルパ: DataAdapter のモック構築 -------
 

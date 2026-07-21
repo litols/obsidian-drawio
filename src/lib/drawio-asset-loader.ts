@@ -49,11 +49,18 @@ function getMediaType(filePath: string): { mediaType: string; isBinary: boolean 
 }
 
 // base64 エンコーダ (ArrayBuffer → base64 文字列)
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+// 1 文字ずつの文字列連結は cold ロードの CPU ボトルネックだったため、
+// 数千バイトのブロック単位で String.fromCharCode.apply して連結する。
+const BASE64_BLOCK = 8192;
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i += BASE64_BLOCK) {
+    // subarray はコピーを作らないビュー。apply の引数上限を避けるためブロック分割。
+    binary += String.fromCharCode.apply(
+      null,
+      bytes.subarray(i, i + BASE64_BLOCK) as unknown as number[],
+    );
   }
   return btoa(binary);
 }
